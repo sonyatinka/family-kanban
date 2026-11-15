@@ -1,0 +1,167 @@
+/* Plain CSS until stage 6 brings Tailwind and shadcn/ui. Colors are tokens, so dark mode
+   only redefines them. */
+:root {
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --fg: #1b1e2b;
+  --muted: #5f6577;
+  --line: #d9dce6;
+  --accent: #3346c4;
+  --accent-fg: #ffffff;
+  --error: #b3232c;
+  --radius: 8px;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #12141c;
+    --surface: #1b1e29;
+    --fg: #e7e9f2;
+    --muted: #9aa0b6;
+    --line: #2d3142;
+    --accent: #8e9cff;
+    --accent-fg: #12141c;
+    --error: #ff7d84;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+}
+
+h1,
+h2 {
+  margin: 0;
+  line-height: 1.2;
+}
+h1 {
+  font-size: 1.6rem;
+}
+h2 {
+  font-size: 1.15rem;
+}
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  font-weight: 700;
+}
+.topbar-user {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.page {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.center {
+  max-width: 480px;
+  margin: 4rem auto;
+  padding: 0 16px;
+  text-align: center;
+}
+
+.muted {
+  color: var(--muted);
+}
+.error {
+  color: var(--error);
+}
+
+.field {
+  display: grid;
+  gap: 4px;
+}
+.field > span:first-child {
+  font-weight: 500;
+}
+.field .error {
+  font-size: 0.9rem;
+}
+
+input {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--fg);
+}
+input[aria-invalid='true'] {
+  border-color: var(--error);
+}
+
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-fg);
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+button.link {
+  background: none;
+  color: var(--accent);
+  padding: 0;
+  font-weight: 500;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.status {
+  margin: 0;
+  padding-left: 20px;
+}

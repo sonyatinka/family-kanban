@@ -13,7 +13,7 @@ The full roadmap is in `plan.txt`. **Stage 1 (users and family) is in progress**
 3. ✅ JWT access and refresh tokens, global auth guard, `GET /api/auth/me`.
 4. ✅ Creating a family: `POST /api/families`, `GET /api/families`, `GET /api/families/:familyId`.
 5. Invite links with a token and expiry.
-6. Frontend: login and sign-up pages, protected routes.
+6. Frontend: login and sign-up pages, protected routes (part 1 ✅: API client with token refresh, TanStack Router, login, sign-up, logout); part 2: family screen with TanStack Query.
 
 Stage 2 is boards, columns and cards. TanStack Query replaces the hand-written `fetch` in the web app (an old code comment calls this "stage 2").
 
@@ -103,7 +103,11 @@ Until then, the apps keep seeing the old `dist/` types.
 
 - React 19 in `StrictMode`, rendered from `src/main.tsx`; the root component is `App.tsx`.
 - Async UI state is modeled as a discriminated union (`{ kind: 'loading' | 'error' | 'ok' }`).
-- There is no router, state library or CSS framework yet. Styles are inline.
+- **API calls** go through `src/api/client.ts` (`api<T>(path, { method, body })`), never raw `fetch`. It adds the Bearer access token, and on a 401 it refreshes the session once and retries. The session (access token and user) lives in module memory, not in `localStorage`. `refreshSession()` shares one in-flight request between all callers (StrictMode double effects, parallel 401s), because the server treats a reused refresh token as theft. Components read the user with `useUser()` (`useSyncExternalStore`).
+- **Routing:** TanStack Router with code-based routes in `src/router.tsx`. Protected pages go under the pathless `authed` route and guest-only pages (login, sign-up) under `guest`; both check the session synchronously in `beforeLoad`. `App.tsx` restores the session with `refreshSession()` before rendering the router and calls `router.invalidate()` on every session change, which performs the redirects after login and logout. `?redirect=` is passed through `safeRedirect` (same-site paths only, no open redirect).
+- **Forms** validate with the shared Zod schemas before sending (`src/pages/formErrors.ts` maps Zod and API errors to field errors), so the client and the API apply the same rules.
+- **`@family/shared` in the web app** resolves to `packages/shared/src/index.ts` through a Vite alias, not to the CommonJS `dist/`: Rollup can't see named exports of a linked CommonJS package. `tsc --noEmit` still reads types from `dist/`, so `pnpm build` (which builds shared first) is the reliable type check.
+- Styles: plain CSS in `src/styles.css` with color tokens and dark mode. Tailwind and shadcn/ui come later.
 - TypeScript settings: `moduleResolution: "bundler"`, `noEmit`, `isolatedModules`, `jsx: react-jsx`.
 
 ## Code style

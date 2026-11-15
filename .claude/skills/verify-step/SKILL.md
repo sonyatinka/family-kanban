@@ -37,7 +37,7 @@ Read the generated SQL before applying it: check constraints, foreign keys with 
 
 ## 4. Live run of the API (when API behavior changed)
 
-The user often has `pnpm dev` running on port 3000. Don't kill it. Run the freshly built API on **port 3001** in the background:
+The user often has `pnpm dev` running on port 3000. Don't kill it, and don't start a second `pnpm dev`: two `nest --watch` instances fight over port 3000 and crash each other, and Vite silently moves to 5174. Check first with `netstat -ano | grep -E ":(3000|517[3-9]) .*LISTENING"`. Before stopping any process, trace its parent chain (`Get-CimInstance Win32_Process`): a process is yours only if it descends from your own shell. A process started from the user's VS Code terminal (powershell.exe under Code.exe) is theirs, even if it looks orphaned. Run the freshly built API on **port 3001** in the background:
 
 ```bash
 cd apps/api && PORT=3001 node dist/main.js > <scratchpad>/api3001.log 2>&1 &
