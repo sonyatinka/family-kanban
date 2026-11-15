@@ -1,0 +1,9 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# pnpm 11+ doesn't run dependencies' install scripts unless they are allowed here
+allowBuilds:
+  esbuild: true
+  # Native password-hashing module: on install it picks a prebuilt binary for the OS
+  argon2: true

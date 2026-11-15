@@ -1,0 +1,50 @@
+Project plan: family kanban
+Nov 7, 2026 · @Sofia
+Stack
+TypeScript on both backend and frontend: one language, less context switching, and a widely used stack. If you'd rather use Python, only the backend part changes.
+Layer
+Technologies
+Backend
+Node.js + NestJS (modules, services, DI)
+Database
+PostgreSQL + Drizzle ORM (or Prisma)
+Cache and queues
+Redis + BullMQ
+Real-time
+Socket.IO
+Validation
+Zod (shared schemas for frontend and backend)
+Frontend
+React + Vite + TypeScript, TanStack Query and TanStack Router
+UI
+Tailwind CSS + shadcn/ui, dnd-kit for drag and drop
+Testing
+Vitest (unit and integration), Playwright (e2e)
+Infrastructure
+Docker Compose, GitHub Actions, deploy to Railway or Fly.io
+Structure
+pnpm workspaces monorepo: apps/api, apps/web, packages/shared
+Stages
+Eight stages, each ending in a working version.
+[ ] Stage 0. Foundation
+    Monorepo, Docker Compose with Postgres and Redis, ESLint and Prettier, a first /health endpoint, an empty React app that calls it. You'll learn: project structure, containers, environment variables.
+[ ] Stage 1. Users and family
+    Sign-up and login (passwords hashed with argon2), JWT with access and refresh tokens, creating a family, invite links with a token and expiry. On the frontend: login and sign-up pages, protected routes. You'll learn: how auth works under the hood, security, database migrations.
+[ ] Stage 2. Boards and tasks
+    Boards → columns → cards with an assignee, deadline and description. REST API with validation and Swagger docs. On the frontend: drag and drop and optimistic updates. Card order stored with fractional indexing. You'll learn: database and API design, relations, indexes.
+[ ] Stage 3. Roles and tests
+    Parent, child and guest roles, permission checks with NestJS guards. Integration tests against a test database, especially for permissions. You'll learn: authorization, backend testing.
+[ ] Stage 4. Real-time
+    Socket.IO with one room per family, broadcasting changes. A version field on cards to handle concurrent edits. Redis adapter for running several servers. You'll learn: WebSockets, concurrency, pub/sub.
+[ ] Stage 5. Recurrence and reminders
+    Recurring tasks with RRULE (the rrule library), dates stored in UTC with the family's time zone. BullMQ delayed jobs for reminders, notifications through a Telegram bot or Web Push. You'll learn: background jobs, schedulers, handling time.
+[ ] Stage 6. Mobile version
+    PWA, responsive layout, calendar view, shopping lists with checklists, a "my tasks" filter. You'll learn: responsive frontend, service workers, dates in the UI.
+[ ] Stage 7. Production
+    Dockerfiles for API and frontend, CI (lint, tests and build on every push), deployment, logging, Sentry, database backups. You'll learn: how a project lives in the real world.
+Bonuses for later: points and rewards for kids, AI suggestions for assignees or labels, importing tasks from CSV through a queue.
+Tips
+• Every stage should end with a working version your family can actually use.
+• Stages 1–2 are the most important and the longest; don't rush them.
+• Commit often and keep a README: the project will be useful for your portfolio.
+• With Claude Code, ask it to explain decisions and review your code rather than generate whole stages.

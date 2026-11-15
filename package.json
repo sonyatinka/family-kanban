@@ -1,0 +1,27 @@
+{
+  "name": "family-kanban",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @family/shared build && pnpm --parallel --filter \"./apps/*\" dev",
+    "build": "pnpm -r build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f",
+    "db:generate": "pnpm --filter @family/api db:generate",
+    "db:migrate": "pnpm --filter @family/api db:migrate",
+    "db:studio": "pnpm --filter @family/api db:studio"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

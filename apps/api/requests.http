@@ -1,0 +1,140 @@
+# Manual API requests for the REST Client extension (humao.rest-client).
+# A "Send Request" link appears above each request; click it to send the request.
+# The response with status and timing opens on the right. Start `pnpm dev` first.
+
+@api = http://localhost:3000/api
+@email = sofia@test.local
+@password = secret123
+
+### Health check: postgres and redis should be 'up'
+GET {{api}}/health
+
+### Sign-up → 201. The email comes back lowercased and trimmed
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "  sofia@Test.Local ",
+  "password": "{{password}}",
+  "name": "Sofia"
+}
+
+### The same email again → 409
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "name": "Sofia"
+}
+
+### Validation errors → 400 with errors for each field
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "not-an-email",
+  "password": "123",
+  "name": ""
+}
+
+### Malformed JSON → 400 before our pipe runs (Express rejects it)
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{ "email": "sofia@test.local",
+
+### Login with a different email case → 200: accessToken and the user without the password hash.
+# The refresh token comes in a cookie (see the Set-Cookie header in the response);
+# REST Client remembers the cookie and sends it with later requests.
+# @name login
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "SOFIA@test.local",
+  "password": "{{password}}"
+}
+
+### Wrong password → 401. Compare the response time with the next request
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "wrong-pass"
+}
+
+### Unknown email → the same 401 in about the same time (dummy hash)
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "nobody@test.local",
+  "password": "wrong-pass"
+}
+
+# ——— Step 3: tokens. Send the "Login" request above (@name login) first ———
+
+### Who am I → 200. The access token comes from the login response
+GET {{api}}/auth/me
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### Who am I without a token → 401
+GET {{api}}/auth/me
+
+### Who am I with a corrupted token → 401
+GET {{api}}/auth/me
+Authorization: Bearer {{login.response.body.accessToken}}x
+
+### Refresh → 200, a new access token and a new refresh cookie (the old one no longer works)
+# @name refresh
+POST {{api}}/auth/refresh
+
+### Who am I with the token from the refresh → 200
+GET {{api}}/auth/me
+Authorization: Bearer {{refresh.response.body.accessToken}}
+
+### Logout → 204, the cookie is cleared
+POST {{api}}/auth/logout
+
+### Refresh after logout → 401
+POST {{api}}/auth/refresh
+
+# ——— Step 4: families. Send "Login" (@name login) again first ———
+
+### Create a family → 201, I am a parent in it. Again → 409 "You are already in a family"
+# @name createFamily
+POST {{api}}/families
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "The Ivanov family"
+}
+
+### My families → 200, an array (of one family for now)
+GET {{api}}/families
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### The family with its members → 200. The id comes from the create response
+GET {{api}}/families/{{createFamily.response.body.id}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### Someone else's or a missing family → 404 (not 403: we don't reveal that the family exists)
+GET {{api}}/families/7b1d3f8e-1a2b-4c3d-8e9f-0a1b2c3d4e5f
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### Not a UUID → 400
+GET {{api}}/families/abc
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### Empty name → 400
+POST {{api}}/families
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "   "
+}
