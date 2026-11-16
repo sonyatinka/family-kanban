@@ -22,7 +22,17 @@ export function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+// True after the user pressed "Log out", until the next login. The route guard reads it: a
+// user who left on purpose is not sent back to their last page, because the next person to
+// log in on this tab may be someone else.
+let leftOnPurpose = false;
+
+export function hasLoggedOut(): boolean {
+  return leftOnPurpose;
+}
+
 function setSession(next: AuthResponse | null) {
+  if (next) leftOnPurpose = false;
   session = next;
   listeners.forEach((l) => l());
 }
@@ -87,10 +97,14 @@ export async function api<T>(path: string, { method = 'GET', body }: RequestOpti
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
+  const userId = session?.user.id;
   let res = await send();
   // Auth endpoints answer 401 for a wrong password, which a refresh can't fix
-  if (res.status === 401 && !path.startsWith('/auth/') && (await refreshSession())) {
-    res = await send();
+  if (res.status === 401 && !path.startsWith('/auth/')) {
+    const next = await refreshSession();
+    // The refresh cookie is shared between tabs, so it can bring another user's session.
+    // The request was made for the previous user and must not be repeated as the new one.
+    if (next && next.user.id === userId) res = await send();
   }
   if (!res.ok) throw await toApiError(res);
   return (res.status === 204 ? undefined : await res.json()) as T;
@@ -109,6 +123,7 @@ export async function logout(): Promise<void> {
     await api<void>('/auth/logout', { method: 'POST' });
   } finally {
     // Forget the session even if the request failed: the user asked to log out
+    leftOnPurpose = true;
     setSession(null);
   }
 }

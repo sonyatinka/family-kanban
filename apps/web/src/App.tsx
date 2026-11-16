@@ -1,6 +1,8 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import { useCallback, useEffect, useState } from 'react';
-import { refreshSession, subscribe } from './api/client';
+import { getUser, refreshSession, subscribe } from './api/client';
+import { queryClient } from './api/queryClient';
 import { router } from './router';
 
 type State = { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready' };
@@ -19,9 +21,28 @@ export function App() {
   }, []);
   useEffect(start, [start]);
 
-  // Login, logout or an expired session: re-run the route guards, so the user is
-  // redirected to the right page
-  useEffect(() => subscribe(() => void router.invalidate()), []);
+  useEffect(() => {
+    let userId = getUser()?.id;
+    return subscribe(() => {
+      const id = getUser()?.id;
+      const changed = id !== userId;
+      userId = id;
+      // Another user took over this tab (for example, they logged in in a second tab and
+      // the shared refresh cookie brought their session here). resetQueries drops the cached
+      // data and makes the pages on screen load again as the new user; clear() would leave
+      // the previous user's data in the mounted pages. A token refresh keeps the same user
+      // and the cache.
+      if (changed && id) void queryClient.resetQueries();
+      // Login, logout or an expired session: re-run the route guards, so the user is
+      // redirected to the right page. After a logout the cache is emptied only then: while
+      // the protected pages are still on screen, they would refetch at once, without a token.
+      // The same on a failed invalidate: the cache of a logged-out user must not stay.
+      const afterGuards = () => {
+        if (!getUser()) queryClient.clear();
+      };
+      void router.invalidate().then(afterGuards, afterGuards);
+    });
+  }, []);
 
   if (state.kind === 'loading') return <p className="center muted">Loading…</p>;
   if (state.kind === 'error') {
@@ -32,5 +53,9 @@ export function App() {
       </div>
     );
   }
-  return <RouterProvider router={router} />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  );
 }

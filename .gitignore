@@ -11,3 +11,7 @@ coverage/
 
 # Theory pages and the quiz: local learning materials, not committed
 docs/
+
+# Manual browser checklist (English and Russian): local, not committed
+apps/web/browser-checklist.md
+apps/web/browser-checklist.ru.md

@@ -13,9 +13,9 @@ The full roadmap is in `plan.txt`. **Stage 1 (users and family) is in progress**
 3. ✅ JWT access and refresh tokens, global auth guard, `GET /api/auth/me`.
 4. ✅ Creating a family: `POST /api/families`, `GET /api/families`, `GET /api/families/:familyId`.
 5. Invite links with a token and expiry.
-6. Frontend: login and sign-up pages, protected routes (part 1 ✅: API client with token refresh, TanStack Router, login, sign-up, logout); part 2: family screen with TanStack Query.
+6. ✅ Frontend: login and sign-up pages, protected routes (part 1: API client with token refresh, TanStack Router, login, sign-up, logout; part 2: family screen with TanStack Query).
 
-Stage 2 is boards, columns and cards. TanStack Query replaces the hand-written `fetch` in the web app (an old code comment calls this "stage 2").
+Stage 2 is boards, columns and cards.
 
 ## Database (Drizzle)
 
@@ -65,7 +65,7 @@ pnpm dev               # build shared once, then run api and web dev servers in 
 | `pnpm db:studio`                     | Drizzle Studio (browse data)                                                                     |
 | `pnpm --filter @family/api <script>` | Run one package's script (`dev`, `build`, `start`)                                               |
 
-There is **no test setup** yet: no test runner and no test scripts. Use `pnpm build` (which type-checks every package) and `pnpm lint` to verify changes. The project skill `verify-step` has the full checklist, including a live API run on port 3001.
+There is **no test setup** yet: no test runner and no test scripts. Use `pnpm build` (which type-checks every package) and `pnpm lint` to verify changes. The project skill `verify-step` has the full checklist, including a live API run on port 3001. The web app is checked by hand in the browser: the scenarios are in [apps/web/browser-checklist.md](apps/web/browser-checklist.md) and, in Russian, [apps/web/browser-checklist.ru.md](apps/web/browser-checklist.ru.md) (both local only, gitignored; keep them in sync). Add scenarios there when a step adds screens.
 
 ### Gotcha: changes to shared types
 
@@ -102,7 +102,9 @@ Until then, the apps keep seeing the old `dist/` types.
 ## Web conventions (React)
 
 - React 19 in `StrictMode`, rendered from `src/main.tsx`; the root component is `App.tsx`.
-- Async UI state is modeled as a discriminated union (`{ kind: 'loading' | 'error' | 'ok' }`).
+- **Server data** goes through TanStack Query (`src/api/queryClient.ts`), not `useState` plus `useEffect`. Each feature has a file such as `src/api/families.ts` with `queryOptions` (key and fetch function together) and mutation hooks. Keys: `['families']` for the list, `['families', id]` for one family. A mutation invalidates the queries it made out of date. Defaults: `staleTime` 30 s; no retry for 4xx `ApiError`s. Render cached `data` before `isError`, so a failed background refetch doesn't replace a loaded page with an error (the health widget is the exception: there the error wins). `App.tsx` calls `resetQueries()` when a different user takes over the tab and `clear()` after a logout once the route guard has redirected, so one user never sees another's cached data. Navigate after a mutation with `await mutateAsync(...)`, not with callbacks passed to `mutate()`: those are skipped once the component has unmounted. The devtools package is not installed (35 transitive packages, some too new on 2026-11-15).
+- Other async UI state (app startup in `App.tsx`) is modeled as a discriminated union (`{ kind: 'loading' | 'error' | 'ready' }`).
+- **New dependencies:** pick a version published at least two weeks ago and pin it exactly (`pnpm add pkg@x.y.z`), then check the publish dates of the transitive packages the lockfile gained.
 - **API calls** go through `src/api/client.ts` (`api<T>(path, { method, body })`), never raw `fetch`. It adds the Bearer access token, and on a 401 it refreshes the session once and retries. The session (access token and user) lives in module memory, not in `localStorage`. `refreshSession()` shares one in-flight request between all callers (StrictMode double effects, parallel 401s), because the server treats a reused refresh token as theft. Components read the user with `useUser()` (`useSyncExternalStore`).
 - **Routing:** TanStack Router with code-based routes in `src/router.tsx`. Protected pages go under the pathless `authed` route and guest-only pages (login, sign-up) under `guest`; both check the session synchronously in `beforeLoad`. `App.tsx` restores the session with `refreshSession()` before rendering the router and calls `router.invalidate()` on every session change, which performs the redirects after login and logout. `?redirect=` is passed through `safeRedirect` (same-site paths only, no open redirect).
 - **Forms** validate with the shared Zod schemas before sending (`src/pages/formErrors.ts` maps Zod and API errors to field errors), so the client and the API apply the same rules.

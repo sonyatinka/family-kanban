@@ -31,7 +31,7 @@ Eight stages, each ending in a working version.
 [ ] Stage 1. Users and family
     Sign-up and login (passwords hashed with argon2), JWT with access and refresh tokens, creating a family, invite links with a token and expiry. On the frontend: login and sign-up pages, protected routes. You'll learn: how auth works under the hood, security, database migrations.
 [ ] Stage 2. Boards and tasks
-    Boards → columns → cards with an assignee, deadline and description. REST API with validation and Swagger docs. On the frontend: drag and drop and optimistic updates. Card order stored with fractional indexing. You'll learn: database and API design, relations, indexes.
+    Boards → columns → cards with an assignee, deadline and description. REST API with validation and Swagger docs. On the frontend: drag and drop and optimistic updates. Redux Toolkit for the board's interface state (filters, the open card, drag state); server data stays in TanStack Query, no RTK Query. Card order stored with fractional indexing. You'll learn: database and API design, relations, indexes.
 [ ] Stage 3. Roles and tests
     Parent, child and guest roles, permission checks with NestJS guards. Integration tests against a test database, especially for permissions. You'll learn: authorization, backend testing.
 [ ] Stage 4. Real-time
@@ -41,7 +41,7 @@ Eight stages, each ending in a working version.
 [ ] Stage 6. Mobile version
     PWA, responsive layout, calendar view, shopping lists with checklists, a "my tasks" filter. You'll learn: responsive frontend, service workers, dates in the UI.
 [ ] Stage 7. Production
-    Dockerfiles for API and frontend, CI (lint, tests and build on every push), deployment, logging, Sentry, database backups. You'll learn: how a project lives in the real world.
+    Dockerfiles for API and frontend, CI (lint, tests and build on every push), deployment, logging, database backups. Production monitoring: error tracking with Sentry on the React app and the NestJS API; an uptime check on the /api/health endpoint (it exists since stage 0); an alert (Telegram or email) when a BullMQ job fails after its retries. You'll learn: how a project lives in the real world.
 Bonuses for later: points and rewards for kids, AI suggestions for assignees or labels, importing tasks from CSV through a queue.
 Tips
 • Every stage should end with a working version your family can actually use.

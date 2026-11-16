@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router';
-import { getUser } from './api/client';
+import { getUser, hasLoggedOut } from './api/client';
+import { FamilyPage } from './pages/FamilyPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -8,7 +9,7 @@ import { RootLayout } from './pages/RootLayout';
 // Routes are declared in code (no file-based generation), so the whole tree is visible here.
 //
 //   root
-//   ├── authed (no path)   only for logged-in users  → /
+//   ├── authed (no path)   only for logged-in users  → /, /families/$familyId
 //   └── guest  (no path)   only for guests           → /login, /register
 
 const rootRoute = createRootRoute({ component: RootLayout });
@@ -20,8 +21,12 @@ const authedRoute = createRoute({
   id: 'authed',
   beforeLoad: ({ location }) => {
     if (!getUser()) {
-      // Remember where the user was going, to come back after login
-      throw redirect({ to: '/login', search: { redirect: location.href } });
+      // Remember where the user was going, to come back after login. Not after "Log out":
+      // the next person to log in may be someone else, and this page is not theirs.
+      throw redirect({
+        to: '/login',
+        search: { redirect: hasLoggedOut() ? undefined : location.href },
+      });
     }
   },
 });
@@ -30,6 +35,12 @@ const homeRoute = createRoute({
   getParentRoute: () => authedRoute,
   path: '/',
   component: HomePage,
+});
+
+const familyRoute = createRoute({
+  getParentRoute: () => authedRoute,
+  path: '/families/$familyId',
+  component: FamilyPage,
 });
 
 interface GuestSearch {
@@ -73,7 +84,7 @@ function safeRedirect(target: string | undefined): string {
 }
 
 const routeTree = rootRoute.addChildren([
-  authedRoute.addChildren([homeRoute]),
+  authedRoute.addChildren([homeRoute, familyRoute]),
   guestRoute.addChildren([loginRoute, registerRoute]),
 ]);
 
