@@ -6,6 +6,7 @@
     "build": "pnpm -r build",
     "lint": "eslint .",
     "format": "prettier --write .",
+    "test:e2e": "pnpm --filter @family/shared build && pnpm --filter @family/e2e test",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f",

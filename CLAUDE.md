@@ -33,6 +33,7 @@ Stage 2 is boards, columns and cards.
 ```
 apps/api         @family/api     NestJS 11, CommonJS, Express platform
 apps/web         @family/web     React 19 + Vite 7, ESM
+apps/e2e         @family/e2e     Playwright end-to-end tests for the web app
 packages/shared  @family/shared  Shared types and Zod schemas (API contract)
 docker-compose.yml               Postgres 17 + Redis 7, with healthchecks and named volumes
 ```
@@ -54,18 +55,32 @@ pnpm db:up             # start Postgres and Redis (docker compose up -d)
 pnpm dev               # build shared once, then run api and web dev servers in parallel
 ```
 
-| Command                              | Purpose                                                                                          |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `pnpm dev`                           | `pnpm --filter @family/shared build`, then `dev` in every `apps/*`                               |
-| `pnpm build`                         | `pnpm -r build`: shared runs `tsc`, api runs `nest build`, web runs `tsc --noEmit && vite build` |
-| `pnpm lint`                          | ESLint on the whole repo (flat config: js recommended, typescript-eslint recommended, prettier)  |
-| `pnpm format`                        | Prettier `--write .`                                                                             |
-| `pnpm db:up` / `db:down` / `db:logs` | Manage the Docker Compose services                                                               |
-| `pnpm db:generate` / `db:migrate`    | Generate a SQL migration from the schema / apply pending migrations                              |
-| `pnpm db:studio`                     | Drizzle Studio (browse data)                                                                     |
-| `pnpm --filter @family/api <script>` | Run one package's script (`dev`, `build`, `start`)                                               |
+| Command                              | Purpose                                                                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                           | `pnpm --filter @family/shared build`, then `dev` in every `apps/*`                                                        |
+| `pnpm build`                         | `pnpm -r build`: shared runs `tsc`, api runs `nest build`, web runs `tsc --noEmit && vite build`, e2e runs `tsc --noEmit` |
+| `pnpm lint`                          | ESLint on the whole repo (flat config: js recommended, typescript-eslint recommended, prettier)                           |
+| `pnpm format`                        | Prettier `--write .`                                                                                                      |
+| `pnpm test:e2e`                      | Build shared, then run the Playwright browser tests in `apps/e2e` (see below)                                             |
+| `pnpm db:up` / `db:down` / `db:logs` | Manage the Docker Compose services                                                                                        |
+| `pnpm db:generate` / `db:migrate`    | Generate a SQL migration from the schema / apply pending migrations                                                       |
+| `pnpm db:studio`                     | Drizzle Studio (browse data)                                                                                              |
+| `pnpm --filter @family/api <script>` | Run one package's script (`dev`, `build`, `start`)                                                                        |
 
-There is **no test setup** yet: no test runner and no test scripts. Use `pnpm build` (which type-checks every package) and `pnpm lint` to verify changes. The project skill `verify-step` has the full checklist, including a live API run on port 3001. The web app is checked by hand in the browser: the scenarios are in [apps/web/browser-checklist.md](apps/web/browser-checklist.md) and, in Russian, [apps/web/browser-checklist.ru.md](apps/web/browser-checklist.ru.md) (both local only, gitignored; keep them in sync). Add scenarios there when a step adds screens.
+There are **no unit tests** yet. Use `pnpm build` (which type-checks every package) and `pnpm lint` to verify changes. The project skill `verify-step` has the full checklist, including a live API run on port 3001.
+
+### End-to-end tests (Playwright)
+
+`pnpm test:e2e` runs the browser tests in `apps/e2e` (`@family/e2e`; specs in `tests/*.spec.ts`, shared steps in `tests/helpers.ts`). They automate the browser checklist; each test title starts with its scenario number.
+
+- Docker must be up (`pnpm db:up`). Playwright starts its own API on port `3001` and Vite on `5174` (`webServer` in `apps/e2e/playwright.config.ts`) and stops them afterwards, so a running `pnpm dev` is not affected. The run fails if 3001 or 5174 is taken (for example by a `verify-step` API run).
+- The browser is the installed Microsoft Edge (`channel: 'msedge'`). Do not run `playwright install`: it downloads unsigned browser builds, which Smart App Control may block.
+- The tests use the **development database**. Every test signs up its own users with emails at `@claude-test.local` (`newUser()` in `helpers.ts`); `global-teardown.ts` deletes those users and their families after the run. Never use another email domain in a test.
+- Simulate server failures and slow answers with `page.route`, and the 30 s `staleTime` with `page.clock`; don't stop servers or wait in real time.
+- One test or file: `pnpm --filter @family/e2e test tests/home.spec.ts -g "empty family name"`. Watch the browser: add `--headed` or `--ui`. A failed test leaves a trace in `apps/e2e/test-results/` (gitignored): `pnpm --filter @family/e2e exec playwright show-trace <trace.zip>`.
+- When a step adds screens, add tests for them.
+
+The same scenarios can be checked by hand in the browser: [apps/web/browser-checklist.md](apps/web/browser-checklist.md) and, in Russian, [apps/web/browser-checklist.ru.md](apps/web/browser-checklist.ru.md) (both local only, gitignored; keep them in sync). Add scenarios there when a step adds screens.
 
 ### Gotcha: changes to shared types
 
@@ -80,7 +95,7 @@ Until then, the apps keep seeing the old `dist/` types.
 
 - **Ports:** API on `3000` (`PORT`), Vite on `5173`, Postgres on `5432`, Redis on `6379`.
 - **API prefix:** `main.ts` calls `app.setGlobalPrefix('api')`, so every controller route lives under `/api/...`.
-- **Vite proxy:** `apps/web/vite.config.ts` forwards `/api` to `http://localhost:3000`. The frontend calls relative URLs such as `fetch('/api/health')`; never hardcode the API host. CORS is also enabled for `http://localhost:5173`, for other clients.
+- **Vite proxy:** `apps/web/vite.config.ts` forwards `/api` to `http://localhost:3000` (the e2e tests override the target with the `API_PROXY_TARGET` environment variable). The frontend calls relative URLs such as `fetch('/api/health')`; never hardcode the API host. CORS is also enabled for `http://localhost:5173`, for other clients.
 - **Environment:** `ConfigModule.forRoot({ isGlobal: true, envFilePath: ['../../.env', '.env'] })` reads the root `.env` (the API's working directory is `apps/api`). Required variables are `DATABASE_URL`, `REDIS_URL` and `JWT_ACCESS_SECRET`, read with `config.getOrThrow`, so the API fails at startup if one is missing. `.env` is gitignored. Add any new variable to `.env.example` too.
 - **Shutdown:** `enableShutdownHooks()` is on. Services that own connections implement `OnModuleDestroy` to close them, as `HealthService` does.
 

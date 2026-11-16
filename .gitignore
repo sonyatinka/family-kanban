@@ -15,3 +15,6 @@ docs/
 # Manual browser checklist (English and Russian): local, not committed
 apps/web/browser-checklist.md
 apps/web/browser-checklist.ru.md
+
+# Playwright: traces and screenshots of failed e2e tests
+test-results/
