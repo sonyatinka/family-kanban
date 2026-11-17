@@ -1,5 +1,4 @@
 import {
-  ConflictException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -11,11 +10,12 @@ import type {
   CreateFamilyRequest,
   FamilyDetails,
   FamilyMemberInfo,
+  FamilyRole,
   FamilySummary,
 } from '@family/shared';
-import { isUniqueViolation, pgError } from '../common/pg-errors';
+import { pgError } from '../common/pg-errors';
 import { DB, type Database } from '../db/db.module';
-import { families, FAMILY_MEMBERS_ONE_FAMILY, familyMembers, users } from '../db/schema';
+import { families, familyMembers, users } from '../db/schema';
 
 @Injectable()
 export class FamiliesService {
@@ -38,19 +38,14 @@ export class FamiliesService {
         return family.id;
       });
     } catch (err) {
-      // While "one family per user" holds, the second insert violates that constraint.
-      // As with sign-up: no check in advance, we handle the database's rejection, so no race
-      if (isUniqueViolation(err, FAMILY_MEMBERS_ONE_FAMILY)) {
-        throw new ConflictException('You are already in a family');
-      }
+      // A new family can't conflict with anything: a person may be in several families
       this.logger.error(`Failed to create a family: ${pgError(err).code ?? 'unknown error'}`);
       throw new InternalServerErrorException();
     }
     return this.getForMember(familyId, userId);
   }
 
-  // All of the user's families with the user's role in each. There is at most one for now,
-  // but the response is an array so neither the web app nor the API has to change later
+  // All of the user's families with the user's role in each, oldest membership first
   async listForUser(userId: string): Promise<FamilySummary[]> {
     const rows = await this.db
       .select({
@@ -65,6 +60,15 @@ export class FamiliesService {
       .orderBy(asc(familyMembers.joinedAt));
 
     return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
+  }
+
+  // The user's role in the family, or null if they are not a member
+  async getRole(familyId: string, userId: string): Promise<FamilyRole | null> {
+    const [row] = await this.db
+      .select({ role: familyMembers.role })
+      .from(familyMembers)
+      .where(and(eq(familyMembers.familyId, familyId), eq(familyMembers.userId, userId)));
+    return row?.role ?? null;
   }
 
   // A family with its members, for members of that family only

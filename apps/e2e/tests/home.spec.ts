@@ -76,6 +76,24 @@ test('4. the home page lists the new family with the role instead of the form', 
   await expect(page.getByRole('button', { name: 'Create family' })).toBeHidden();
 });
 
+test('20. "Create another family" adds a second family', async ({ page }) => {
+  await signUpWithFamily(page, 'The Testers');
+  await page.getByRole('link', { name: '← Home' }).click();
+
+  // With a family, the form is hidden behind a button
+  await expect(page.getByLabel('Family name')).toBeHidden();
+  await page.getByRole('button', { name: 'Create another family' }).click();
+  await expect(page.getByRole('heading', { name: 'Create another family' })).toBeVisible();
+  await createFamily(page, 'Second Family');
+  await expect(page.getByRole('heading', { name: 'Second Family' })).toBeVisible();
+
+  await page.getByRole('link', { name: '← Home' }).click();
+  const myFamilies = page
+    .locator('section', { has: page.getByRole('heading', { name: 'Your families' }) })
+    .getByRole('listitem');
+  await expect(myFamilies).toHaveCount(2);
+});
+
 test('13. the status card shows "Checking…" again when the home page is reopened', async ({
   page,
 }) => {

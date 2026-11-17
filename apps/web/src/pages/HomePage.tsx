@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { useState } from 'react';
 import { familiesQuery } from '../api/families';
 import { useUser } from '../api/useUser';
 import { CreateFamilyForm } from '../components/CreateFamilyForm';
@@ -9,6 +10,7 @@ import { roleLabel } from './roles';
 export function HomePage() {
   const user = useUser();
   const families = useQuery(familiesQuery);
+  const [creating, setCreating] = useState(false);
 
   return (
     <div className="stack">
@@ -23,8 +25,8 @@ export function HomePage() {
           <button onClick={() => void families.refetch()}>Try again</button>
         </div>
       )}
-      {/* The API returns a list, although the database allows one family per user for now.
-          The form shows only for an empty list: a second family would get a 409. */}
+      {/* Without families the form is the main thing on the page. With families it opens
+          from a button: a person can be in several families */}
       {families.data?.length === 0 && <CreateFamilyForm />}
       {families.data && families.data.length > 0 && (
         <section className="card stack">
@@ -39,7 +41,13 @@ export function HomePage() {
               </li>
             ))}
           </ul>
+          <button className="link" onClick={() => setCreating((open) => !open)}>
+            {creating ? 'Cancel' : 'Create another family'}
+          </button>
         </section>
+      )}
+      {creating && families.data && families.data.length > 0 && (
+        <CreateFamilyForm title="Create another family" />
       )}
 
       <SystemStatus />

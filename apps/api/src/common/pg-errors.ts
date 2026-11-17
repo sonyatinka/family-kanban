@@ -5,7 +5,7 @@ export const PG_UNIQUE_VIOLATION = '23505';
 
 interface PgErrorInfo {
   code?: string;
-  // Name of the violated constraint, for example 'family_members_one_family_per_user'
+  // Name of the violated constraint, for example 'users_email_unique'
   constraint?: string;
 }
 

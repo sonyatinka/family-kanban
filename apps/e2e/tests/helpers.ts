@@ -47,6 +47,24 @@ export async function createFamily(page: Page, name: string): Promise<string> {
   return new URL(page.url()).pathname;
 }
 
+// On a parent's family page: creates an invite link for the role and returns the full link.
+// The token is taken from the API response: the field on screen may still show the previous
+// link for a moment, and the test must not pick that one up.
+export async function createInviteLink(
+  page: Page,
+  role: 'parent' | 'child' | 'guest',
+): Promise<string> {
+  await page.getByLabel('Role').selectOption(role);
+  const [response] = await Promise.all([
+    page.waitForResponse((r) => r.request().method() === 'POST' && /\/invites$/.test(r.url())),
+    page.getByRole('button', { name: 'Create invite link' }).click(),
+  ]);
+  const { token } = (await response.json()) as { token: string };
+  const link = new URL(`/invite/${token}`, page.url()).href;
+  await expect(page.getByLabel('Invite link')).toHaveValue(link);
+  return link;
+}
+
 // Sign up and create a family in one step, for the tests that start on the family page
 export async function signUpWithFamily(page: Page, familyName: string) {
   const user = newUser();

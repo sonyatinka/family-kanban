@@ -10,11 +10,14 @@ export const createFamilySchema = z.object({
 
 export type CreateFamilyRequest = z.infer<typeof createFamilySchema>;
 
-// Role in a particular family. Role-based permissions come in stage 3
-export type FamilyRole = 'parent' | 'child' | 'guest';
+// Role in a particular family. Role-based permissions come in stage 3.
+// A schema, not only a type: the invite form and the API validate the chosen role with it
+export const familyRoleSchema = z.enum(['parent', 'child', 'guest'], { error: 'Choose a role' });
+
+export type FamilyRole = z.infer<typeof familyRoleSchema>;
 
 // A family in the "my families" list, with my role in it.
-// The API supports several families per user, although the database allows only one for now
+// A person can be in several families
 export interface FamilySummary {
   id: string;
   name: string;

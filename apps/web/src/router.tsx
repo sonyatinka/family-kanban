@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/
 import { getUser, hasLoggedOut } from './api/client';
 import { FamilyPage } from './pages/FamilyPage';
 import { HomePage } from './pages/HomePage';
+import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { RootLayout } from './pages/RootLayout';
@@ -9,7 +10,7 @@ import { RootLayout } from './pages/RootLayout';
 // Routes are declared in code (no file-based generation), so the whole tree is visible here.
 //
 //   root
-//   ├── authed (no path)   only for logged-in users  → /, /families/$familyId
+//   ├── authed (no path)   only for logged-in users  → /, /families/$familyId, /invite/$token
 //   └── guest  (no path)   only for guests           → /login, /register
 
 const rootRoute = createRootRoute({ component: RootLayout });
@@ -41,6 +42,14 @@ const familyRoute = createRoute({
   getParentRoute: () => authedRoute,
   path: '/families/$familyId',
   component: FamilyPage,
+});
+
+// The page an invite link opens. Protected like the others: a guest logs in or signs up
+// first and comes back here through ?redirect=
+const inviteRoute = createRoute({
+  getParentRoute: () => authedRoute,
+  path: '/invite/$token',
+  component: InvitePage,
 });
 
 interface GuestSearch {
@@ -84,7 +93,7 @@ function safeRedirect(target: string | undefined): string {
 }
 
 const routeTree = rootRoute.addChildren([
-  authedRoute.addChildren([homeRoute, familyRoute]),
+  authedRoute.addChildren([homeRoute, familyRoute, inviteRoute]),
   guestRoute.addChildren([loginRoute, registerRoute]),
 ]);
 

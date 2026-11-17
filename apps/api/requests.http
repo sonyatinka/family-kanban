@@ -104,7 +104,7 @@ POST {{api}}/auth/refresh
 
 # ——— Step 4: families. Send "Login" (@name login) again first ———
 
-### Create a family → 201, I am a parent in it. Again → 409 "You are already in a family"
+### Create a family → 201, I am a parent in it. Again → 201, another family: a person can be in several
 # @name createFamily
 POST {{api}}/families
 Authorization: Bearer {{login.response.body.accessToken}}
@@ -114,7 +114,8 @@ Content-Type: application/json
   "name": "The Ivanov family"
 }
 
-### My families → 200, an array (of one family for now)
+### My families → 200, an array, oldest membership first. The invites below use the first one
+# @name myFamilies
 GET {{api}}/families
 Authorization: Bearer {{login.response.body.accessToken}}
 
@@ -138,3 +139,70 @@ Content-Type: application/json
 {
   "name": "   "
 }
+
+# ─── Invites ─────────────────────────────────────────────────────────────────
+# A parent creates a one-time link; a second user previews and accepts it.
+# The family id comes from "My families" above, so send that request first.
+
+@kidEmail = kid@test.local
+
+### Create an invite → 201. The token is shown only here: the database keeps its hash
+# @name createInvite
+POST {{api}}/families/{{myFamilies.response.body.$[0].id}}/invites
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "role": "child",
+  "expiresInDays": 7
+}
+
+### Wrong role and lifetime → 400 with errors for both fields
+POST {{api}}/families/{{myFamilies.response.body.$[0].id}}/invites
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "role": "boss",
+  "expiresInDays": 5
+}
+
+### The family's invites that still work → 200, without tokens
+GET {{api}}/families/{{myFamilies.response.body.$[0].id}}/invites
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### Second user: sign up (201, or 409 if they already exist), then log in
+POST {{api}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{kidEmail}}",
+  "password": "{{password}}",
+  "name": "Kid"
+}
+
+###
+# @name kid
+POST {{api}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{kidEmail}}",
+  "password": "{{password}}"
+}
+
+### Preview as the second user → 200: family, who invites, role, expiry
+GET {{api}}/invites/{{createInvite.response.body.token}}
+Authorization: Bearer {{kid.response.body.accessToken}}
+
+### Accept → 200, the family with the new member. Already in this family → 409
+POST {{api}}/invites/{{createInvite.response.body.token}}/accept
+Authorization: Bearer {{kid.response.body.accessToken}}
+
+### The same link again → 404: it was one-time. Unknown, revoked and expired links get the same 404
+POST {{api}}/invites/{{createInvite.response.body.token}}/accept
+Authorization: Bearer {{kid.response.body.accessToken}}
+
+### Revoke an invite → 204 (create a new one first: a used invite can't be revoked, → 404)
+DELETE {{api}}/families/{{myFamilies.response.body.$[0].id}}/invites/{{createInvite.response.body.id}}
+Authorization: Bearer {{login.response.body.accessToken}}

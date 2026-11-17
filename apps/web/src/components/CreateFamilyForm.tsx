@@ -5,7 +5,7 @@ import { useCreateFamily } from '../api/families';
 import { fromApi, fromZod, noErrors } from '../pages/formErrors';
 import { Field } from './Field';
 
-export function CreateFamilyForm() {
+export function CreateFamilyForm({ title = 'Create your family' }: { title?: string }) {
   const navigate = useNavigate();
   const createFamily = useCreateFamily();
   const [name, setName] = useState('');
@@ -19,9 +19,10 @@ export function CreateFamilyForm() {
     setErrors(noErrors);
     let family;
     try {
-      // mutateAsync, not mutate(data, { onSuccess }): HomePage removes this form as soon as
-      // the reloaded list has a family in it. TanStack Query skips callbacks passed to
-      // mutate() for an unmounted component; a promise resolves either way.
+      // mutateAsync, not mutate(data, { onSuccess }): the form may leave the screen before
+      // the mutation ends (HomePage removes the first-family form once the list has a family).
+      // TanStack Query skips callbacks passed to mutate() for an unmounted component; a promise
+      // resolves either way.
       family = await createFamily.mutateAsync(parsed.data);
     } catch (err) {
       return setErrors(fromApi(err));
@@ -32,7 +33,7 @@ export function CreateFamilyForm() {
 
   return (
     <form className="card stack" onSubmit={onSubmit} noValidate>
-      <h2>Create your family</h2>
+      <h2>{title}</h2>
       <p className="muted">You will be a parent in it and can invite the others later.</p>
       <Field
         label="Family name"

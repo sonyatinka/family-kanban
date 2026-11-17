@@ -1,12 +1,4 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Get,
-  Param,
-  ParseUUIDPipe,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import {
   createFamilySchema,
   type CreateFamilyRequest,
@@ -14,6 +6,7 @@ import {
   type FamilySummary,
 } from '@family/shared';
 import { CurrentUser, type AuthUser } from '../auth/auth.decorators';
+import { uuidParam } from '../common/uuid-param';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { FamiliesService } from './families.service';
 
@@ -42,14 +35,7 @@ export class FamiliesController {
   @Get(':familyId')
   get(
     @CurrentUser() user: AuthUser,
-    // Not a UUID → 400 right away, without a database query (Postgres would fail on the type cast)
-    @Param(
-      'familyId',
-      new ParseUUIDPipe({
-        exceptionFactory: () => new BadRequestException('Invalid family id'),
-      }),
-    )
-    familyId: string,
+    @Param('familyId', uuidParam('Invalid family id')) familyId: string,
   ): Promise<FamilyDetails> {
     return this.families.getForMember(familyId, user.id);
   }

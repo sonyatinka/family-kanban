@@ -58,10 +58,29 @@ Practicalities:
 - Cyrillic in `-d '...'` gets mangled by Git Bash. Send such bodies from a UTF-8 file with `--data-binary @file`.
 - Check the server log (`api3001.log`) for unexpected errors and warnings.
 
-**Test data:** use emails ending in `@claude-test.local`, never `@test.local`. The user tests manually with `@test.local` addresses (see `apps/api/requests.http`), and a cleanup by `@test.local` once deleted their account. Clean up only your own data:
+**Test data:** use emails ending in `@claude-test.local`, never `@test.local`. The user tests manually with `@test.local` addresses (see `apps/api/requests.http`), and a cleanup by `@test.local` once deleted their account. Clean up only your own data, families first. Deleting a user removes their memberships
+(`ON DELETE CASCADE`) but not the family itself, which would stay with no members. And delete
+only families where every member is a test user: a test user may have joined a real family
+through an invite, and that family must survive. `apps/e2e/global-teardown.ts` uses the same
+query.
 
 ```bash
-docker compose exec -T postgres psql -U family -d family_kanban -c "delete from users where email like '%@claude-test.local';"
+docker compose exec -T postgres psql -U family -d family_kanban -c "
+DELETE FROM families f
+WHERE EXISTS (SELECT 1 FROM family_members m JOIN users u ON u.id = m.user_id
+              WHERE m.family_id = f.id AND u.email LIKE '%@claude-test.local')
+  AND NOT EXISTS (SELECT 1 FROM family_members m JOIN users u ON u.id = m.user_id
+                  WHERE m.family_id = f.id AND u.email NOT LIKE '%@claude-test.local');
+DELETE FROM users WHERE email LIKE '%@claude-test.local';"
+```
+
+Then check that nothing is left: both counts must be 0.
+
+```bash
+docker compose exec -T postgres psql -U family -d family_kanban -t -A -c "
+SELECT count(*) FROM users WHERE email LIKE '%@claude-test.local';
+SELECT count(*) FROM families f WHERE NOT EXISTS
+  (SELECT 1 FROM family_members m WHERE m.family_id = f.id);"
 ```
 
 Stop only the process on port 3001:

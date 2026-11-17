@@ -33,7 +33,7 @@ Eight stages, each ending in a working version.
 [ ] Stage 2. Boards and tasks
     Boards → columns → cards with an assignee, deadline and description. REST API with validation and Swagger docs. On the frontend: drag and drop and optimistic updates. Redux Toolkit for the board's interface state (filters, the open card, drag state); server data stays in TanStack Query, no RTK Query. Card order stored with fractional indexing. You'll learn: database and API design, relations, indexes.
 [ ] Stage 3. Roles and tests
-    Parent, child and guest roles, permission checks with NestJS guards. Integration tests against a test database, especially for permissions. You'll learn: authorization, backend testing.
+    Parent, child and guest roles, permission checks with NestJS guards. Child accounts without email: a parent creates a login for a child with a name and a PIN; the PIN is hashed with argon2, and login attempts are rate-limited with a lockout, because a short PIN is easy to guess. Integration tests against a test database, especially for permissions. You'll learn: authorization, backend testing.
 [ ] Stage 4. Real-time
     Socket.IO with one room per family, broadcasting changes. A version field on cards to handle concurrent edits. Redis adapter for running several servers. You'll learn: WebSockets, concurrency, pub/sub.
 [ ] Stage 5. Recurrence and reminders

@@ -8,6 +8,7 @@ import { fromApi, fromZod, noErrors } from './formErrors';
 export function LoginPage() {
   // Keep ?redirect= when switching to the sign-up page
   const search = useSearch({ from: '/guest' });
+  const fromInvite = search.redirect?.startsWith('/invite/') ?? false;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState(noErrors);
@@ -34,6 +35,17 @@ export function LoginPage() {
   return (
     <form className="card stack" onSubmit={onSubmit} noValidate>
       <h1>Log in</h1>
+      {/* Someone who came from an invite link may have no account yet. The hint depends only
+          on the address, not on the email, so it reveals nothing about who is registered */}
+      {fromInvite && (
+        <p>
+          You were invited to a family. New here?{' '}
+          <Link to="/register" search={search}>
+            Create an account
+          </Link>{' '}
+          to accept the invite. Already have one? Log in below.
+        </p>
+      )}
       <Field
         label="Email"
         name="email"

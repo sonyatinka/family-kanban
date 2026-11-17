@@ -123,7 +123,8 @@ a {
   font-size: 0.9rem;
 }
 
-input {
+input,
+select {
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--line);
@@ -183,6 +184,34 @@ button.link {
   padding: 10px 0;
   overflow-wrap: anywhere;
 }
+/* Two short fields side by side; they stack on a narrow screen */
+.fields-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.fields-row > * {
+  flex: 1 1 160px;
+}
+
+/* A read-only link with its Copy button */
+.copy-link {
+  display: flex;
+  gap: 8px;
+}
+.copy-link input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Buttons at the end of a list row */
+.row-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+}
+
 .row + .row {
   border-top: 1px solid var(--line);
 }

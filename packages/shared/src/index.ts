@@ -3,6 +3,7 @@
 
 export * from './auth';
 export * from './families';
+export * from './invites';
 
 export type ServiceStatus = 'up' | 'down';
 

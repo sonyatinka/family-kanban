@@ -1,17 +1,4 @@
-import {
-  index,
-  pgEnum,
-  pgTable,
-  primaryKey,
-  text,
-  timestamp,
-  unique,
-  uuid,
-} from 'drizzle-orm/pg-core';
-
-// Name of the "one family per user" constraint. The service uses it to tell
-// "already in a family" from other unique violations
-export const FAMILY_MEMBERS_ONE_FAMILY = 'family_members_one_family_per_user';
+import { index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 // The database schema is the source of truth. drizzle-kit generates SQL migrations from it
 // (pnpm db:generate), and Drizzle infers row types for queries.
@@ -84,11 +71,44 @@ export const familyMembers = pgTable(
   (t) => [
     // Composite key: one row per person per family
     primaryKey({ columns: [t.familyId, t.userId] }),
-    // TEMPORARY: one family per user. The code and the API already support several families,
-    // so lifting this takes one migration (DROP CONSTRAINT, add an index on user_id)
-    // and a family switcher in the web app
-    unique(FAMILY_MEMBERS_ONE_FAMILY).on(t.userId),
+    // A person can be in several families (a grandmother in her children's families, a nanny
+    // as a guest). The primary key starts with family_id, so "my families" (WHERE user_id = …)
+    // needs its own index
+    index('family_members_user_id_idx').on(t.userId),
   ],
 );
 
 export type FamilyMember = typeof familyMembers.$inferSelect;
+
+// One-time invite links. As with refresh tokens, only the SHA-256 of the token is stored:
+// a leaked table doesn't let anyone join a family. An invite works while it is not used,
+// not revoked and not expired; all three are checked in one UPDATE when it is accepted.
+export const familyInvites = pgTable(
+  'family_invites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    familyId: uuid('family_id')
+      .notNull()
+      .references(() => families.id, { onDelete: 'cascade' }),
+    // UNIQUE also gives an index: accepting and previewing look the invite up by its hash
+    tokenHash: text('token_hash').notNull().unique(),
+    // The role the invited person gets in the family
+    role: familyRole('role').notNull(),
+    // Deleting the inviter's account deletes the invites they made: the invited person
+    // would see the name of someone who is gone
+    createdBy: uuid('created_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    // Set when the invite is accepted. used_at alone marks it as used, so the link stays
+    // dead even if the account that used it is deleted later (used_by becomes NULL)
+    usedAt: timestamp('used_at', { withTimezone: true }),
+    usedBy: uuid('used_by').references(() => users.id, { onDelete: 'set null' }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  },
+  // For the list of a family's invites
+  (t) => [index('family_invites_family_id_idx').on(t.familyId)],
+);
+
+export type FamilyInvite = typeof familyInvites.$inferSelect;

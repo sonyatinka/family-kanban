@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { and, eq, gt, isNull, sql } from 'drizzle-orm';
-import { createHash, randomBytes } from 'node:crypto';
+import { randomToken, sha256 } from '../common/tokens';
 import { DB, type Database } from '../db/db.module';
 import { refreshTokens } from '../db/schema';
 
@@ -94,15 +94,9 @@ export class RefreshTokensService {
   }
 
   private async insert(db: Database | Tx, userId: string): Promise<IssuedRefreshToken> {
-    // 256 bits of randomness can't be guessed, so a fast unsalted SHA-256 is enough.
-    // Passwords need argon2 because there are few of them and they can be brute-forced from a dictionary.
-    const token = randomBytes(32).toString('base64url');
+    const token = randomToken();
     const expiresAt = new Date(Date.now() + REFRESH_TTL_MS);
     await db.insert(refreshTokens).values({ userId, tokenHash: sha256(token), expiresAt });
     return { token, expiresAt };
   }
-}
-
-function sha256(value: string): string {
-  return createHash('sha256').update(value).digest('hex');
 }
