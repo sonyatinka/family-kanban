@@ -36,6 +36,13 @@
       "when": 1794921454879,
       "tag": "0004_several_families_per_user",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795006201826,
+      "tag": "0005_boards_columns_cards",
+      "breakpoints": true
     }
   ]
 }

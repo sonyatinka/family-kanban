@@ -1,4 +1,15 @@
-import { index, pgEnum, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  customType,
+  date,
+  index,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 // The database schema is the source of truth. drizzle-kit generates SQL migrations from it
 // (pnpm db:generate), and Drizzle infers row types for queries.
@@ -112,3 +123,86 @@ export const familyInvites = pgTable(
 );
 
 export type FamilyInvite = typeof familyInvites.$inferSelect;
+
+// A fractional-indexing key ("a0", "a0V", "a1"): the order of columns on a board and of cards
+// in a column. Moving an item gives it a key between its new neighbors, and nobody else is
+// renumbered. The keys are compared byte by byte, as JavaScript compares strings. Postgres
+// compares text by the database's collation (language rules, where "a" and "A" sort together),
+// which can order such keys differently, so these columns use the "C" collation: plain bytes.
+// Drizzle has no collation option, hence a custom type.
+const positionKey = customType<{ data: string }>({
+  dataType: () => 'text COLLATE "C"',
+});
+
+// A family has any number of boards ("Home", "School")
+export const boards = pgTable(
+  'boards',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    familyId: uuid('family_id')
+      .notNull()
+      .references(() => families.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // For the list of a family's boards
+  (t) => [index('boards_family_id_idx').on(t.familyId)],
+);
+
+export type Board = typeof boards.$inferSelect;
+
+// "board_columns", not "columns": COLUMNS is an SQL keyword, and information_schema already
+// has a "columns" view, which makes queries and error messages confusing
+export const boardColumns = pgTable(
+  'board_columns',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    boardId: uuid('board_id')
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    position: positionKey('position').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // Unique: two columns with the same key would have no defined order. Two people adding a
+  // column at the same moment can compute the same key; the second insert gets 23505 and is
+  // retried with a fresh key. The index also serves "the board's columns in order"
+  (t) => [uniqueIndex('board_columns_board_id_position_key').on(t.boardId, t.position)],
+);
+
+export type BoardColumn = typeof boardColumns.$inferSelect;
+
+// A card belongs to a column; its board is the column's board. There is no board_id on the
+// card: a second copy of that link could disagree with the first one.
+export const cards = pgTable(
+  'cards',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    // CASCADE, so deleting a board deletes its columns and their cards. Deleting a non-empty
+    // column on its own is refused by the service (409), under a row lock on the column
+    columnId: uuid('column_id')
+      .notNull()
+      .references(() => boardColumns.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    // One person or nobody. The service checks that the assignee is a member of the family.
+    // Deleting the account clears the field; leaving the family (stage 3) must clear it too
+    assigneeId: uuid('assignee_id').references(() => users.id, { onDelete: 'set null' }),
+    // A calendar day without time and time zone; times and reminders come in stage 5
+    dueDate: date('due_date', { mode: 'string' }),
+    position: positionKey('position').notNull(),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Same reasoning as for columns; also serves "the column's cards in order"
+    uniqueIndex('cards_column_id_position_key').on(t.columnId, t.position),
+    // A foreign key doesn't create an index in Postgres. Without this one, deleting a user
+    // (ON DELETE SET NULL) would scan the whole cards table; later it serves "my tasks"
+    index('cards_assignee_id_idx').on(t.assigneeId),
+    index('cards_created_by_idx').on(t.createdBy),
+  ],
+);
+
+export type Card = typeof cards.$inferSelect;

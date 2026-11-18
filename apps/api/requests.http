@@ -206,3 +206,43 @@ Authorization: Bearer {{kid.response.body.accessToken}}
 ### Revoke an invite → 204 (create a new one first: a used invite can't be revoked, → 404)
 DELETE {{api}}/families/{{myFamilies.response.body.$[0].id}}/invites/{{createInvite.response.body.id}}
 Authorization: Bearer {{login.response.body.accessToken}}
+
+# ─── Boards ──────────────────────────────────────────────────────────────────
+# Any member of the family manages boards (roles come in stage 3).
+# The family id comes from "My families" above, so send that request first.
+# Got 401? The access token lives 15 minutes: send "Login" (# @name login) above again.
+
+### Create a board → 201, with the columns "To do", "In progress", "Done" (positions a0, a1, a2)
+# @name createBoard
+POST {{api}}/families/{{myFamilies.response.body.$[0].id}}/boards
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Home"
+}
+
+### The family's boards → 200, oldest first
+GET {{api}}/families/{{myFamilies.response.body.$[0].id}}/boards
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### One board with its columns and cards → 200
+GET {{api}}/boards/{{createBoard.response.body.id}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### Rename → 200
+PATCH {{api}}/boards/{{createBoard.response.body.id}}
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Home chores"
+}
+
+### A missing board, or a board of a family I'm not in → the same 404
+GET {{api}}/boards/7b1d3f8e-1a2b-4c3d-8e9f-0a1b2c3d4e5f
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### Delete → 204, with its columns and cards. Again → 404
+DELETE {{api}}/boards/{{createBoard.response.body.id}}
+Authorization: Bearer {{login.response.body.accessToken}}

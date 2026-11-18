@@ -2,6 +2,7 @@
 // Change the contract here, and TypeScript shows what to fix on both sides.
 
 export * from './auth';
+export * from './boards';
 export * from './families';
 export * from './invites';
 

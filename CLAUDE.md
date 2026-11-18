@@ -6,7 +6,7 @@ This file guides Claude Code when working in this repository.
 
 Family kanban is a learning project for family time management on kanban boards. It is built in stages. Stage 0 (foundation) is done: a monorepo with a NestJS API whose only endpoint is a health check for Postgres and Redis, and a React page that shows the result.
 
-The full roadmap is in `plan.txt`. **Stage 1 (users and family) is in progress**, done in small steps with explanations:
+The full roadmap is in `plan.txt`. Stage 1 (users and family) is done, in small steps with explanations:
 
 1. ✅ Drizzle ORM and migrations; `users` table; health check uses Drizzle.
 2. ✅ Sign-up and login (`POST /api/auth/register`, `/api/auth/login`), passwords hashed with argon2id.
@@ -15,7 +15,15 @@ The full roadmap is in `plan.txt`. **Stage 1 (users and family) is in progress**
 5. ✅ Invite links with a token and expiry (one-time, parents only, 1/7/30 days); a person can be in several families.
 6. ✅ Frontend: login and sign-up pages, protected routes (part 1: API client with token refresh, TanStack Router, login, sign-up, logout; part 2: family screen with TanStack Query).
 
-Stage 2 is boards, columns and cards.
+**Stage 2 (boards, columns and cards) is in progress:**
+
+1. ✅ Tables `boards`, `board_columns`, `cards` (migration `0005`); boards API.
+2. Columns and cards API, moving cards (fractional indexing).
+3. Swagger docs at `/api/docs`, built from the Zod schemas.
+4. Frontend: boards list, board screen, card dialog; Redux Toolkit for the board's UI state.
+5. Drag and drop (dnd-kit) with optimistic updates.
+
+Decisions for stage 2: any family member may do everything (roles come in stage 3); a new board gets the columns "To do", "In progress", "Done"; a column with cards can't be deleted (409); a card's due date is a `date` without time; a card has one assignee or none, and the assignee must be a member of the board's family.
 
 ## Database (Drizzle)
 
@@ -107,6 +115,8 @@ Until then, the apps keep seeing the old `dist/` types.
 - Auth: `JwtAuthGuard` is global (`APP_GUARD` in `AuthModule`), so **every route requires a Bearer access token unless marked `@Public()`** (`src/auth/auth.decorators.ts`). Get the caller with `@CurrentUser() user: AuthUser` (only `{ id }`; load the rest from the DB). Access token: HS256 JWT, 15 min, payload `{ sub }`, never stored. Refresh token: random 32 bytes in an httpOnly `refresh_token` cookie (`SameSite=Strict`, `path=/api/auth`), stored as SHA-256 in `refresh_tokens`, rotated on every `/auth/refresh`. Reusing a revoked token more than 10 s after revocation revokes all the user's tokens (theft detection); within 10 s it is treated as a parallel-request race. `/auth/refresh` does not clear the cookie on 401, on purpose.
 - Families: **a person can be in several families** (migration `0004` dropped the old one-family-per-user constraint; `family_members_user_id_idx` serves "my families"). The home page lists them and offers "Create another family". Always take `familyId` from the URL (`/families/:familyId/...`) and check membership for that family; never derive "the user's family" from the user. The role (`parent` / `child` / `guest`) lives in `family_members`, per family. A non-member gets 404, not 403, so family ids can't be probed. Leaving a family (and what happens when the last parent leaves) comes in stage 3.
 - Invites (`src/invites/`): one-time links. The token is `randomToken()` (32 random bytes, base64url) and only its SHA-256 is stored (`src/common/tokens.ts`, shared with refresh tokens), so the link is shown once, in the `POST` response. Only a parent of the family creates, lists and revokes invites (`requireParent`: non-member 404, other role 403); the parent picks the role and a lifetime of 1, 7 or 30 days. `GET /api/invites/:token` and `POST /api/invites/:token/accept` need a logged-in user. Every token that doesn't work (unknown, used, revoked, expired) gets the same 404. Accepting is one transaction: a conditional `UPDATE … WHERE used_at IS NULL AND revoked_at IS NULL AND expires_at > now() RETURNING`, then the member insert; a primary-key violation (already in this family) → 409, and the rollback leaves the invite unused.
+- Boards (`src/boards/`): created and listed under the family (`/families/:familyId/boards`), but one board is addressed without it (`/boards/:boardId`, later `/columns/:id`, `/cards/:id`), so URLs don't grow with every level. The service finds the board's family itself and checks membership in the same query (`findForMember`: boards joined with `family_members` on the board's family and the caller); a missing board and someone else's board get the same 404. A card has no `board_id`: its board is its column's board, so the two links can't disagree.
+- Order of columns and cards: a fractional-indexing key in `position` (`fractional-indexing`, `generateKeyBetween`; keys like `a0`, `a0V`, `a1`). The column type is `text COLLATE "C"` (a Drizzle `customType`, since Drizzle has no collation option), so Postgres sorts the keys byte by byte, as JavaScript compares them. Our `postgres:17-alpine` image (musl) happens to sort `en_US.utf8` by bytes too, so a missing `COLLATE "C"` would not show up locally, only on a glibc or ICU database. A unique index on `(board_id, position)` / `(column_id, position)` rejects two items with the same key; retry with a fresh key on `23505`. `fractional-indexing` is ESM-only; the CommonJS API loads it through Node's `require(esm)` (Node 22.12+).
 - Ids in the URL: `@Param('familyId', uuidParam('Invalid family id'))` (`src/common/uuid-param.ts`) answers 400 before any database query.
 - Postgres errors: use `src/common/pg-errors.ts` (`pgError`, `isUniqueViolation(err, constraintName?)`). Match the constraint name when a table has more than one unique constraint.
 - Manual API requests: `apps/api/requests.http` (VS Code REST Client).
