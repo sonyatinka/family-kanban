@@ -19,6 +19,9 @@ export const invitesQuery = (familyId: string) =>
   queryOptions({
     queryKey: ['families', familyId, 'invites'],
     queryFn: () => api<InviteSummary[]>(invitesPath(familyId)),
+    // An invite disappears from this list when someone uses it in another browser. With the
+    // default 30 s a parent coming back to the tab could still copy a link that is already dead
+    staleTime: 0,
   });
 
 // Both mutations change the list, so it is reloaded after them, after an error too

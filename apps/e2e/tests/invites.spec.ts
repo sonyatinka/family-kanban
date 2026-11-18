@@ -105,6 +105,22 @@ test('16. a used link and a revoked link do not work', async ({ page, browser, b
   await latePage.context().close();
 });
 
+test('17. a member of the family is told so and cannot use its link', async ({ page }) => {
+  await signUpWithFamily(page, 'The Testers');
+  const link = await createInviteLink(page, 'child');
+  const familyPath = new URL(page.url()).pathname;
+
+  // The parent opens a link of their own family: no Join button, a way back to the family
+  await page.goto(link);
+  await expect(page.getByText('You are already in this family.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Join family' })).toBeHidden();
+  await page.getByRole('link', { name: 'Open the family' }).click();
+  await expect(page).toHaveURL(familyPath);
+
+  // Nothing was used: the invite is still waiting for its real recipient
+  await expect(invitesCard(page).getByRole('listitem')).toHaveCount(1);
+});
+
 test('18. every link made on the page can be copied from the list until it is left', async ({
   page,
   context,
@@ -126,23 +142,6 @@ test('18. every link made on the page can be copied from the list until it is le
   await expect(invitesCard(page).getByRole('listitem')).toHaveCount(2);
   await expect(invitesCard(page).getByRole('button', { name: 'Copy link' })).toHaveCount(0);
   await expect(invitesCard(page).getByText('If one is lost, revoke it')).toBeVisible();
-});
-
-test('17. a member of the family cannot use its link, and the link keeps working', async ({
-  page,
-}) => {
-  await signUpWithFamily(page, 'The Testers');
-  const link = await createInviteLink(page, 'child');
-  const familyPath = new URL(page.url()).pathname;
-
-  // The parent opens a link of their own family
-  await page.goto(link);
-  await page.getByRole('button', { name: 'Join family' }).click();
-  await expect(page.getByRole('alert')).toHaveText('You are already in this family');
-
-  // The API rolled the transaction back, so the invite is still unused for its real recipient
-  await page.goto(familyPath);
-  await expect(invitesCard(page).getByRole('listitem')).toHaveCount(1);
 });
 
 test('19. someone with a family joins a second one, and the home page lists both', async ({

@@ -49,7 +49,21 @@ export function InvitePage() {
     );
   }
 
-  const { familyName, invitedByName, role, expiresAt } = preview.data;
+  const { familyId, alreadyMember, familyName, invitedByName, role, expiresAt } = preview.data;
+
+  // Pressing "Join" would only get a 409, and the link would stay for its real recipient
+  if (alreadyMember) {
+    return (
+      <section className="card stack">
+        <h1>{familyName}</h1>
+        <p>You are already in this family. This link is meant for someone else.</p>
+        <Link to="/families/$familyId" params={{ familyId }}>
+          Open the family
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <section className="card stack">
       <h1>Join {familyName}</h1>

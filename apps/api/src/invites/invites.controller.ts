@@ -54,10 +54,10 @@ export class FamilyInvitesController {
 export class InvitesController {
   constructor(private readonly invites: InvitesService) {}
 
-  // GET /api/invites/:token → which family, who invites, which role
+  // GET /api/invites/:token → which family, who invites, which role, am I already in it
   @Get(':token')
-  preview(@Param('token') token: string): Promise<InvitePreview> {
-    return this.invites.preview(token);
+  preview(@CurrentUser() user: AuthUser, @Param('token') token: string): Promise<InvitePreview> {
+    return this.invites.preview(token, user.id);
   }
 
   // POST /api/invites/:token/accept → 200, the family the user has joined

@@ -5,7 +5,7 @@ import {
   type FamilyRole,
 } from '@family/shared';
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { invitesQuery, useCreateInvite, useRevokeInvite } from '../api/invites';
 import { formatDateTime } from '../pages/format';
 import { fromApi, fromZod, noErrors } from '../pages/formErrors';
@@ -167,14 +167,19 @@ function inviteLink(token: string): string {
 // A small button that copies a link from the list
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Don't leave a timer running after the button is gone
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   function copy() {
     navigator.clipboard.writeText(text).then(
       () => setState('copied'),
       () => setState('failed'),
     );
-    // Back to the normal label after a moment
-    setTimeout(() => setState('idle'), 2000);
+    // Back to the normal label after a moment. A second click starts the wait again,
+    // instead of the first click's timer cutting the second label short
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setState('idle'), 2000);
   }
 
   return (

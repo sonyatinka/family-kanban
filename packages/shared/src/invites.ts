@@ -30,8 +30,11 @@ export interface InviteSummary {
   expiresAt: string;
 }
 
-// What the invited person sees before pressing "Join"
+// What the invited person sees before pressing "Join". A member of the family is told so
+// at once instead of getting a 409 after pressing the button
 export interface InvitePreview {
+  familyId: string;
+  alreadyMember: boolean;
   familyName: string;
   invitedByName: string;
   role: FamilyRole;

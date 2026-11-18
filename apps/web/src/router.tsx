@@ -42,6 +42,10 @@ const familyRoute = createRoute({
   getParentRoute: () => authedRoute,
   path: '/families/$familyId',
   component: FamilyPage,
+  // By default the router keeps the same component when only a param changes, together with
+  // its state. Another family must start fresh: otherwise a link just made for family A
+  // would still be shown on the page of family B
+  remountDeps: ({ params }) => params,
 });
 
 // The page an invite link opens. Protected like the others: a guest logs in or signs up

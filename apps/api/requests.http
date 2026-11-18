@@ -191,7 +191,7 @@ Content-Type: application/json
   "password": "{{password}}"
 }
 
-### Preview as the second user → 200: family, who invites, role, expiry
+### Preview as the second user → 200: family, who invites, role, expiry, alreadyMember: false
 GET {{api}}/invites/{{createInvite.response.body.token}}
 Authorization: Bearer {{kid.response.body.accessToken}}
 

@@ -104,9 +104,10 @@ export class InvitesService {
   }
 
   // What the invited person sees before joining
-  async preview(token: string): Promise<InvitePreview> {
+  async preview(token: string, userId: string): Promise<InvitePreview> {
     const [row] = await this.db
       .select({
+        familyId: familyInvites.familyId,
         familyName: families.name,
         invitedByName: users.name,
         role: familyInvites.role,
@@ -117,7 +118,9 @@ export class InvitesService {
       .innerJoin(users, eq(users.id, familyInvites.createdBy))
       .where(and(eq(familyInvites.tokenHash, sha256(token)), isActive()));
     if (!row) throw new NotFoundException(INVITE_NOT_FOUND);
-    return { ...row, expiresAt: row.expiresAt.toISOString() };
+    // A member of this family can't use the link (accept would answer 409): say so up front
+    const alreadyMember = (await this.families.getRole(row.familyId, userId)) !== null;
+    return { ...row, alreadyMember, expiresAt: row.expiresAt.toISOString() };
   }
 
   // Joins the family. Marking the invite as used and adding the member happen in one

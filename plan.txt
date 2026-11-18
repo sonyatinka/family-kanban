@@ -37,11 +37,11 @@ Eight stages, each ending in a working version.
 [ ] Stage 4. Real-time
     Socket.IO with one room per family, broadcasting changes. A version field on cards to handle concurrent edits. Redis adapter for running several servers. You'll learn: WebSockets, concurrency, pub/sub.
 [ ] Stage 5. Recurrence and reminders
-    Recurring tasks with RRULE (the rrule library), dates stored in UTC with the family's time zone. BullMQ delayed jobs for reminders, notifications through a Telegram bot or Web Push. You'll learn: background jobs, schedulers, handling time.
+    Recurring tasks with RRULE (the rrule library), dates stored in UTC with the family's time zone. BullMQ delayed jobs for reminders, and a periodic job that deletes used, revoked and expired invites, notifications through a Telegram bot or Web Push. You'll learn: background jobs, schedulers, handling time.
 [ ] Stage 6. Mobile version
     PWA, responsive layout, calendar view, shopping lists with checklists, a "my tasks" filter. You'll learn: responsive frontend, service workers, dates in the UI.
 [ ] Stage 7. Production
-    Dockerfiles for API and frontend, CI (lint, tests and build on every push), deployment, logging, database backups. Production monitoring: error tracking with Sentry on the React app and the NestJS API; an uptime check on the /api/health endpoint (it exists since stage 0); an alert (Telegram or email) when a BullMQ job fails after its retries. You'll learn: how a project lives in the real world.
+    Dockerfiles for API and frontend, CI (lint, tests and build on every push), deployment, logging, database backups. Security hardening: a Referrer-Policy: no-referrer header (invite tokens are in URLs) and a limit on active invites per family. Production monitoring: error tracking with Sentry on the React app and the NestJS API; an uptime check on the /api/health endpoint (it exists since stage 0); an alert (Telegram or email) when a BullMQ job fails after its retries. You'll learn: how a project lives in the real world.
 Bonuses for later: points and rewards for kids, AI suggestions for assignees or labels, importing tasks from CSV through a queue.
 Tips
 • Every stage should end with a working version your family can actually use.
