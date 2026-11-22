@@ -70,45 +70,55 @@ export const moveCardSchema = z.object({
 
 export type MoveCardRequest = z.infer<typeof moveCardSchema>;
 
-// A board in the family's list of boards
-export interface BoardSummary {
-  id: string;
-  familyId: string;
-  name: string;
-  createdAt: string;
-}
+// Fractional-indexing key; items are sorted by it in byte order, as JavaScript compares strings
+const position = z
+  .string()
+  .describe('Order key: sort by it as plain strings (byte order). Never compute it on the client');
 
-export interface CardInfo {
-  id: string;
-  columnId: string;
-  title: string;
-  description: string;
-  // A member of the family, or null when nobody is assigned
-  assigneeId: string | null;
-  // A calendar day, "2026-11-30", without time
-  dueDate: string | null;
-  // Fractional-indexing key; cards in a column are sorted by it (byte order, as in JS)
-  position: string;
-  createdBy: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+// A board in the family's list of boards
+export const boardSummarySchema = z.object({
+  id: z.uuid(),
+  familyId: z.uuid(),
+  name: z.string(),
+  createdAt: z.iso.datetime(),
+});
+
+export type BoardSummary = z.infer<typeof boardSummarySchema>;
+
+export const cardInfoSchema = z.object({
+  id: z.uuid(),
+  columnId: z.uuid(),
+  title: z.string(),
+  description: z.string(),
+  assigneeId: z.uuid().nullable().describe('A member of the family, or null when nobody'),
+  dueDate: z.iso.date().nullable().describe('A calendar day without time, "2026-11-30"'),
+  position,
+  createdBy: z.uuid().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+export type CardInfo = z.infer<typeof cardInfoSchema>;
 
 // A column without its cards: the answer to creating, renaming and moving a column
-export interface ColumnSummary {
-  id: string;
-  boardId: string;
-  name: string;
-  position: string;
-}
+export const columnSummarySchema = z.object({
+  id: z.uuid(),
+  boardId: z.uuid(),
+  name: z.string(),
+  position,
+});
 
-export interface ColumnInfo extends ColumnSummary {
-  // Sorted by position
-  cards: CardInfo[];
-}
+export type ColumnSummary = z.infer<typeof columnSummarySchema>;
+
+export const columnInfoSchema = columnSummarySchema.extend({
+  cards: z.array(cardInfoSchema).describe('Sorted by position'),
+});
+
+export type ColumnInfo = z.infer<typeof columnInfoSchema>;
 
 // One board with its columns and cards, everything the board screen needs in one request
-export interface BoardDetails extends BoardSummary {
-  // Sorted by position
-  columns: ColumnInfo[];
-}
+export const boardDetailsSchema = boardSummarySchema.extend({
+  columns: z.array(columnInfoSchema).describe('Sorted by position'),
+});
+
+export type BoardDetails = z.infer<typeof boardDetailsSchema>;

@@ -30,25 +30,36 @@ export const loginSchema = z.object({
 export type RegisterRequest = z.infer<typeof registerSchema>;
 export type LoginRequest = z.infer<typeof loginSchema>;
 
+// Response schemas describe what the API sends back. The types are inferred from them, and the
+// API builds its Swagger docs from them. Nothing parses responses with them yet (API tests will)
+
 // A user in API responses: no password hash
-export interface PublicUser {
-  id: string;
-  email: string;
-  name: string;
-  createdAt: string;
-}
+export const publicUserSchema = z.object({
+  id: z.uuid(),
+  email: z.email(),
+  name: z.string(),
+  createdAt: z.iso.datetime(),
+});
+
+export type PublicUser = z.infer<typeof publicUserSchema>;
 
 // Response of register, login and refresh. The web app keeps the access token in memory and
 // sends it as Authorization: Bearer <token>. The refresh token is not in the body: it is in
 // an httpOnly cookie that page JavaScript can't read.
-export interface AuthResponse {
-  accessToken: string;
-  user: PublicUser;
-}
+export const authResponseSchema = z.object({
+  accessToken: z.string().describe('JWT, valid for 15 minutes. Send it as Authorization: Bearer'),
+  user: publicUserSchema,
+});
+
+export type AuthResponse = z.infer<typeof authResponseSchema>;
 
 // Body of a 400 response on a validation error
-export interface ValidationErrorResponse {
-  statusCode: 400;
-  message: string;
-  errors: Record<string, string[] | undefined>;
-}
+export const validationErrorResponseSchema = z.object({
+  statusCode: z.literal(400),
+  message: z.string(),
+  errors: z
+    .record(z.string(), z.array(z.string()).optional())
+    .describe('Error messages by field name'),
+});
+
+export type ValidationErrorResponse = z.infer<typeof validationErrorResponseSchema>;

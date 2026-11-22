@@ -4,15 +4,5 @@
 export * from './auth';
 export * from './boards';
 export * from './families';
+export * from './health';
 export * from './invites';
-
-export type ServiceStatus = 'up' | 'down';
-
-export interface HealthResponse {
-  status: 'ok' | 'degraded';
-  timestamp: string;
-  services: {
-    database: ServiceStatus;
-    redis: ServiceStatus;
-  };
-}

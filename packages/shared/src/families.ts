@@ -18,22 +18,28 @@ export type FamilyRole = z.infer<typeof familyRoleSchema>;
 
 // A family in the "my families" list, with my role in it.
 // A person can be in several families
-export interface FamilySummary {
-  id: string;
-  name: string;
-  createdAt: string;
-  myRole: FamilyRole;
-}
+export const familySummarySchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  createdAt: z.iso.datetime(),
+  myRole: familyRoleSchema.describe('My role in this family'),
+});
 
-export interface FamilyMemberInfo {
-  userId: string;
-  name: string;
-  email: string;
-  role: FamilyRole;
-  joinedAt: string;
-}
+export type FamilySummary = z.infer<typeof familySummarySchema>;
+
+export const familyMemberInfoSchema = z.object({
+  userId: z.uuid(),
+  name: z.string(),
+  email: z.email(),
+  role: familyRoleSchema,
+  joinedAt: z.iso.datetime(),
+});
+
+export type FamilyMemberInfo = z.infer<typeof familyMemberInfoSchema>;
 
 // One family with its members
-export interface FamilyDetails extends FamilySummary {
-  members: FamilyMemberInfo[];
-}
+export const familyDetailsSchema = familySummarySchema.extend({
+  members: z.array(familyMemberInfoSchema),
+});
+
+export type FamilyDetails = z.infer<typeof familyDetailsSchema>;

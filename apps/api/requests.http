@@ -1,6 +1,7 @@
 # Manual API requests for the REST Client extension (humao.rest-client).
 # A "Send Request" link appears above each request; click it to send the request.
 # The response with status and timing opens on the right. Start `pnpm dev` first.
+# Every endpoint with its body and answers is also described at http://localhost:3000/api/docs
 
 @api = http://localhost:3000/api
 @email = sofia@test.local

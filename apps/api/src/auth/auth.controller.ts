@@ -1,20 +1,25 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { CookieOptions, Request, Response } from 'express';
+import { ApiTags } from '@nestjs/swagger';
 import {
+  authResponseSchema,
   loginSchema,
+  publicUserSchema,
   registerSchema,
   type AuthResponse,
   type LoginRequest,
   type PublicUser,
   type RegisterRequest,
 } from '@family/shared';
-import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { ZodBody } from '../common/zod-body.decorator';
+import { ApiDoc } from '../swagger/api-doc.decorator';
 import { CurrentUser, Public, type AuthUser } from './auth.decorators';
 import { AuthService, type AuthResult } from './auth.service';
 
 const REFRESH_COOKIE = 'refresh_token';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   private readonly cookieOptions: CookieOptions;
@@ -38,8 +43,15 @@ export class AuthController {
   // POST /api/auth/register → 201, access token and user; the refresh token goes into a cookie
   @Public()
   @Post('register')
+  @ApiDoc({
+    summary: 'Sign up',
+    description: 'Also sets the refresh_token cookie (httpOnly, path /api/auth).',
+    status: 201,
+    returns: authResponseSchema,
+    errors: { 400: 'Invalid email, password or name', 409: 'This email is already registered' },
+  })
   async register(
-    @Body(new ZodValidationPipe(registerSchema)) body: RegisterRequest,
+    @ZodBody(registerSchema) body: RegisterRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
     return this.withCookie(res, await this.auth.register(body));
@@ -49,8 +61,18 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @ApiDoc({
+    summary: 'Log in',
+    description: 'Also sets the refresh_token cookie (httpOnly, path /api/auth).',
+    status: 200,
+    returns: authResponseSchema,
+    errors: {
+      400: 'Malformed email, or an empty or too long password',
+      401: 'Invalid email or password',
+    },
+  })
   async login(
-    @Body(new ZodValidationPipe(loginSchema)) body: LoginRequest,
+    @ZodBody(loginSchema) body: LoginRequest,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
     return this.withCookie(res, await this.auth.login(body));
@@ -63,6 +85,14 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
+  @ApiDoc({
+    summary: 'Get a new access token',
+    description:
+      'Reads the refresh_token cookie, no body. Every call replaces the cookie with a new one.',
+    status: 200,
+    returns: authResponseSchema,
+    errors: { 401: 'No cookie, or the session has expired or was revoked' },
+  })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -74,6 +104,11 @@ export class AuthController {
   @Public()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiDoc({
+    summary: 'Log out',
+    description: 'Revokes the session of the refresh_token cookie and clears the cookie.',
+    status: 204,
+  })
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response): Promise<void> {
     await this.auth.logout(readRefreshCookie(req));
     res.clearCookie(REFRESH_COOKIE, this.cookieOptions);
@@ -81,6 +116,7 @@ export class AuthController {
 
   // GET /api/auth/me → the current user. No @Public(): needs an access token
   @Get('me')
+  @ApiDoc({ summary: 'The current user', status: 200, returns: publicUserSchema })
   me(@CurrentUser() user: AuthUser): Promise<PublicUser> {
     return this.auth.me(user.id);
   }

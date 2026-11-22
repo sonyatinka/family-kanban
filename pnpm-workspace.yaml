@@ -7,3 +7,5 @@ allowBuilds:
   esbuild: true
   # Native password-hashing module: on install it picks a prebuilt binary for the OS
   argon2: true
+  # Comes with swagger-ui-dist; its postinstall sends download analytics. Explicitly denied
+  '@scarf/scarf': false

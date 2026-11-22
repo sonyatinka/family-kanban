@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { familyRoleSchema, type FamilyRole } from './families';
+import { familyRoleSchema } from './families';
 
 // How long an invite link works, in days. The parent picks one when creating the invite
 export const INVITE_LIFETIMES_DAYS = [1, 7, 30] as const;
@@ -14,29 +14,35 @@ export type CreateInviteRequest = z.infer<typeof createInviteSchema>;
 
 // The answer to creating an invite. This is the only time the token is shown: the database
 // keeps only its hash, so a lost link can't be shown again, only replaced by a new invite
-export interface CreatedInvite {
-  id: string;
-  token: string;
-  role: FamilyRole;
-  expiresAt: string;
-}
+export const createdInviteSchema = z.object({
+  id: z.uuid(),
+  token: z.string().describe('Shown only in this response; the link is /invite/<token>'),
+  role: familyRoleSchema,
+  expiresAt: z.iso.datetime(),
+});
+
+export type CreatedInvite = z.infer<typeof createdInviteSchema>;
 
 // An invite that still works, in the family's list. No token here
-export interface InviteSummary {
-  id: string;
-  role: FamilyRole;
-  createdByName: string;
-  createdAt: string;
-  expiresAt: string;
-}
+export const inviteSummarySchema = z.object({
+  id: z.uuid(),
+  role: familyRoleSchema,
+  createdByName: z.string(),
+  createdAt: z.iso.datetime(),
+  expiresAt: z.iso.datetime(),
+});
+
+export type InviteSummary = z.infer<typeof inviteSummarySchema>;
 
 // What the invited person sees before pressing "Join". A member of the family is told so
 // at once instead of getting a 409 after pressing the button
-export interface InvitePreview {
-  familyId: string;
-  alreadyMember: boolean;
-  familyName: string;
-  invitedByName: string;
-  role: FamilyRole;
-  expiresAt: string;
-}
+export const invitePreviewSchema = z.object({
+  familyId: z.uuid(),
+  alreadyMember: z.boolean(),
+  familyName: z.string(),
+  invitedByName: z.string(),
+  role: familyRoleSchema,
+  expiresAt: z.iso.datetime(),
+});
+
+export type InvitePreview = z.infer<typeof invitePreviewSchema>;
