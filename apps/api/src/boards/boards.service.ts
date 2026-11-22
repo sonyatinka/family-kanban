@@ -1,10 +1,12 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, asc, eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { generateNKeysBetween } from 'fractional-indexing';
 import type { BoardDetails, BoardNameRequest, BoardSummary, CardInfo } from '@family/shared';
 import { DB, type Database } from '../db/db.module';
-import { boardColumns, boards, cards, familyMembers } from '../db/schema';
+import { boardColumns, boards, cards } from '../db/schema';
 import { FamiliesService } from '../families/families.service';
+import { BoardAccess } from './board-access';
+import { toBoardSummary, toCardInfo, toColumnSummary } from './mappers';
 
 // Every new board starts with these columns; they can be renamed and deleted later
 const DEFAULT_COLUMNS = ['To do', 'In progress', 'Done'];
@@ -14,6 +16,7 @@ export class BoardsService {
   constructor(
     @Inject(DB) private readonly db: Database,
     private readonly families: FamiliesService,
+    private readonly access: BoardAccess,
   ) {}
 
   // A board with the default columns. Any member of the family may create one; role-based
@@ -50,21 +53,30 @@ export class BoardsService {
 
   // A board with its columns and cards, both sorted by position
   async get(boardId: string, userId: string): Promise<BoardDetails> {
-    const board = await this.findForMember(boardId, userId);
+    const board = await this.access.board(boardId, userId);
 
-    const columns = await this.db
-      .select()
-      .from(boardColumns)
-      .where(eq(boardColumns.boardId, boardId))
-      .orderBy(asc(boardColumns.position));
-
-    // All cards of the board in one query (through their columns), not one query per column
-    const cardRows = await this.db
-      .select({ card: cards })
-      .from(cards)
-      .innerJoin(boardColumns, eq(boardColumns.id, cards.columnId))
-      .where(eq(boardColumns.boardId, boardId))
-      .orderBy(asc(cards.position));
+    // Columns and cards are read in one REPEATABLE READ transaction, so both queries see the
+    // database at the same moment. In READ COMMITTED (the default) each query has its own
+    // snapshot: a column created and a card moved into it between the two queries would give
+    // a card whose column isn't in the list, and the card would silently drop out of the answer
+    const { columns, cardRows } = await this.db.transaction(
+      async (tx) => {
+        const columns = await tx
+          .select()
+          .from(boardColumns)
+          .where(eq(boardColumns.boardId, boardId))
+          .orderBy(asc(boardColumns.position));
+        // All cards of the board in one query (through their columns), not one per column
+        const cardRows = await tx
+          .select({ card: cards })
+          .from(cards)
+          .innerJoin(boardColumns, eq(boardColumns.id, cards.columnId))
+          .where(eq(boardColumns.boardId, boardId))
+          .orderBy(asc(cards.position));
+        return { columns, cardRows };
+      },
+      { isolationLevel: 'repeatable read', accessMode: 'read only' },
+    );
 
     const cardsByColumn = new Map<string, CardInfo[]>();
     for (const { card } of cardRows) {
@@ -76,16 +88,14 @@ export class BoardsService {
     return {
       ...toBoardSummary(board),
       columns: columns.map((c) => ({
-        id: c.id,
-        name: c.name,
-        position: c.position,
+        ...toColumnSummary(c),
         cards: cardsByColumn.get(c.id) ?? [],
       })),
     };
   }
 
   async rename(boardId: string, userId: string, data: BoardNameRequest): Promise<BoardSummary> {
-    await this.findForMember(boardId, userId);
+    await this.access.board(boardId, userId);
     const [board] = await this.db
       .update(boards)
       .set({ name: data.name })
@@ -98,7 +108,7 @@ export class BoardsService {
 
   // Deletes the board with its columns and cards (ON DELETE CASCADE)
   async remove(boardId: string, userId: string): Promise<void> {
-    await this.findForMember(boardId, userId);
+    await this.access.board(boardId, userId);
     await this.db.delete(boards).where(eq(boards.id, boardId));
   }
 
@@ -108,39 +118,4 @@ export class BoardsService {
       throw new NotFoundException('Family not found');
     }
   }
-
-  // The board, if the user is a member of the board's family. One query: the join with
-  // family_members finds no row both for a missing board and for someone else's board,
-  // so the two get the same 404 and board ids can't be probed
-  private async findForMember(boardId: string, userId: string) {
-    const [row] = await this.db
-      .select({ board: boards })
-      .from(boards)
-      .innerJoin(
-        familyMembers,
-        and(eq(familyMembers.familyId, boards.familyId), eq(familyMembers.userId, userId)),
-      )
-      .where(eq(boards.id, boardId));
-    if (!row) throw new NotFoundException('Board not found');
-    return row.board;
-  }
-}
-
-function toBoardSummary(b: typeof boards.$inferSelect): BoardSummary {
-  return { id: b.id, familyId: b.familyId, name: b.name, createdAt: b.createdAt.toISOString() };
-}
-
-function toCardInfo(c: typeof cards.$inferSelect): CardInfo {
-  return {
-    id: c.id,
-    columnId: c.columnId,
-    title: c.title,
-    description: c.description,
-    assigneeId: c.assigneeId,
-    dueDate: c.dueDate,
-    position: c.position,
-    createdBy: c.createdBy,
-    createdAt: c.createdAt.toISOString(),
-    updatedAt: c.updatedAt.toISOString(),
-  };
 }

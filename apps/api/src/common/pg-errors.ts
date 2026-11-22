@@ -2,6 +2,7 @@
 // original in cause. Don't log a DrizzleQueryError message: it contains the query parameters.
 
 export const PG_UNIQUE_VIOLATION = '23505';
+export const PG_FOREIGN_KEY_VIOLATION = '23503';
 
 interface PgErrorInfo {
   code?: string;
@@ -21,11 +22,18 @@ export function pgError(err: unknown): PgErrorInfo {
   return {};
 }
 
-// A unique violation; if a name is given, a violation of that constraint only
-export function isUniqueViolation(err: unknown, constraint?: string): boolean {
+// An error with this Postgres code; if a constraint name is given, of that constraint only
+function isViolation(err: unknown, code: string, constraint?: string): boolean {
   const info = pgError(err);
-  return (
-    info.code === PG_UNIQUE_VIOLATION &&
-    (constraint === undefined || info.constraint === constraint)
-  );
+  return info.code === code && (constraint === undefined || info.constraint === constraint);
+}
+
+// A unique violation
+export function isUniqueViolation(err: unknown, constraint?: string): boolean {
+  return isViolation(err, PG_UNIQUE_VIOLATION, constraint);
+}
+
+// A foreign key violation: the referenced row doesn't exist, for example it was just deleted
+export function isForeignKeyViolation(err: unknown, constraint?: string): boolean {
+  return isViolation(err, PG_FOREIGN_KEY_VIOLATION, constraint);
 }

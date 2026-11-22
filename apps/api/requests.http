@@ -246,3 +246,115 @@ Authorization: Bearer {{login.response.body.accessToken}}
 ### Delete → 204, with its columns and cards. Again → 404
 DELETE {{api}}/boards/{{createBoard.response.body.id}}
 Authorization: Bearer {{login.response.body.accessToken}}
+
+# ─── Columns and cards ───────────────────────────────────────────────────────
+# A board of its own, because the Boards section above ends by deleting its board.
+# Order is stored as fractional-indexing keys; the server computes them, the client only says
+# "after this card" (or null for first).
+
+### A board for this section → 201, with the columns "To do", "In progress", "Done"
+# @name cardsBoard
+POST {{api}}/families/{{myFamilies.response.body.$[0].id}}/boards
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Chores"
+}
+
+### Add a column → 201, at the end of the board
+# @name newColumn
+POST {{api}}/boards/{{cardsBoard.response.body.id}}/columns
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Someday"
+}
+
+### Rename the column → 200
+PATCH {{api}}/columns/{{newColumn.response.body.id}}
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "name": "Later"
+}
+
+### Move the column first → 200, a key before "a0" (afterColumnId: another column's id puts it after that one)
+POST {{api}}/columns/{{newColumn.response.body.id}}/move
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "afterColumnId": null
+}
+
+### Add a card to "To do" → 201, at the end of the column. Only the title is required
+# @name card1
+POST {{api}}/columns/{{cardsBoard.response.body.columns[0].id}}/cards
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Buy milk"
+}
+
+### A card with every field → 201. The assignee must be a member of the family (else 400);
+### the due date is ISO 8601, YYYY-MM-DD (else 400)
+# @name card2
+POST {{api}}/columns/{{cardsBoard.response.body.columns[0].id}}/cards
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Homework",
+  "description": "Math, page 12",
+  "assigneeId": "{{login.response.body.user.id}}",
+  "dueDate": "2026-11-30"
+}
+
+### Change only the due date → 200, the other fields stay. null clears assigneeId or dueDate
+PATCH {{api}}/cards/{{card2.response.body.id}}
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "dueDate": "2026-12-01"
+}
+
+### Move "Homework" first in "To do" → 200, a key before the first card
+POST {{api}}/cards/{{card2.response.body.id}}/move
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "columnId": "{{cardsBoard.response.body.columns[0].id}}",
+  "afterCardId": null
+}
+
+### Move "Buy milk" to "In progress" → 200. afterCardId must be a card of the target column (else 409)
+POST {{api}}/cards/{{card1.response.body.id}}/move
+Authorization: Bearer {{login.response.body.accessToken}}
+Content-Type: application/json
+
+{
+  "columnId": "{{cardsBoard.response.body.columns[1].id}}",
+  "afterCardId": null
+}
+
+### The board now: columns and cards in order → 200
+GET {{api}}/boards/{{cardsBoard.response.body.id}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### Delete a column that still has cards → 409 "Move or delete the cards first"
+DELETE {{api}}/columns/{{cardsBoard.response.body.columns[0].id}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### Delete a card → 204. Again → 404
+DELETE {{api}}/cards/{{card2.response.body.id}}
+Authorization: Bearer {{login.response.body.accessToken}}
+
+### Delete the empty column → 204
+DELETE {{api}}/columns/{{newColumn.response.body.id}}
+Authorization: Bearer {{login.response.body.accessToken}}
