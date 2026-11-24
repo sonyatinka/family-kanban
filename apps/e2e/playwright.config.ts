@@ -13,7 +13,8 @@ export default defineConfig({
   timeout: 20_000,
   // A `test.only` left in the code by mistake fails the run on CI instead of skipping the rest
   forbidOnly: Boolean(process.env.CI),
-  reporter: 'list',
+  // On GitHub, the `github` reporter also marks failed tests in the run summary
+  reporter: process.env.CI ? [['list'], ['github']] : 'list',
   globalTeardown: './global-teardown.ts',
 
   use: {
@@ -22,7 +23,9 @@ export default defineConfig({
     // Microsoft Edge that is installed with Windows, not a browser downloaded by
     // `playwright install`: Smart App Control on this machine may block unsigned binaries.
     // Use channel: 'chrome' if you prefer Google Chrome.
-    channel: 'msedge',
+    // On CI (GitHub Actions) there is no Smart App Control: the workflow installs Playwright's
+    // own Chromium, which is used when no channel is set.
+    channel: process.env.CI ? undefined : 'msedge',
     // For a failed test, test-results/ gets a trace: `pnpm exec playwright show-trace <zip>`
     trace: 'retain-on-failure',
   },

@@ -89,6 +89,10 @@ There are **no unit tests** yet. Use `pnpm build` (which type-checks every packa
 - One test or file: `pnpm --filter @family/e2e test tests/home.spec.ts -g "empty family name"`. Watch the browser: add `--headed` or `--ui`. A failed test leaves a trace in `apps/e2e/test-results/` (gitignored): `pnpm --filter @family/e2e exec playwright show-trace <trace.zip>`.
 - When a step adds screens, add tests for them.
 
+### CI (GitHub Actions)
+
+`.github/workflows/ci.yml` runs on every push to `main`, on pull requests, and by hand (Actions → CI → Run workflow). On a clean Ubuntu machine it starts Postgres 17 and Redis 7 as services, writes `.env` from `.env.example` with a random `JWT_ACCESS_SECRET`, then runs migrations, `pnpm build`, `pnpm lint`, Prettier and `pnpm test:e2e`. There `CI` is set, so `playwright.config.ts` uses Playwright's own Chromium (installed by the workflow) instead of Edge, and adds the `github` reporter. Traces of failed tests are uploaded as the `playwright-traces` artifact. A new environment variable must get a value in `.env.example` that works on CI, or a step in the workflow.
+
 The same scenarios can be checked by hand in the browser: [apps/web/browser-checklist.md](apps/web/browser-checklist.md) and, in Russian, [apps/web/browser-checklist.ru.md](apps/web/browser-checklist.ru.md) (both local only, gitignored; keep them in sync). Add scenarios there when a step adds screens.
 
 ### Gotcha: changes to shared types

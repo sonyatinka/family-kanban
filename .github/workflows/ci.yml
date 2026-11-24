@@ -1,0 +1,102 @@
+# Type-check, lint and the Playwright end-to-end tests on a clean machine.
+# Runs on every push to main, on pull requests, and by hand: Actions → CI → Run workflow.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch cancels the run that is still going
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Fresh Postgres and Redis for every run, the same images as docker-compose.yml.
+    # The job waits until both healthchecks pass.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: family
+          POSTGRES_PASSWORD: family
+          POSTGRES_DB: family_kanban
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U family -d family_kanban"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Node 22.12+ is required: the API loads the ESM-only fractional-indexing with require()
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      # pnpm 11, the same major version as on the development machine
+      - name: Install pnpm
+        run: npm install -g pnpm@11.28.11
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The API, drizzle-kit and the e2e teardown all read the root .env.
+      # The secret only lives for this run, so a random one is enough.
+      - name: Create .env
+        run: |
+          cp .env.example .env
+          SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))")
+          sed -i "s/^JWT_ACCESS_SECRET=.*/JWT_ACCESS_SECRET=$SECRET/" .env
+
+      - name: Apply migrations
+        run: pnpm db:migrate
+
+      # Builds shared first, then type-checks and builds api, web and e2e
+      - name: Build
+        run: pnpm build
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Prettier
+        run: pnpm exec prettier --check apps packages CLAUDE.md .github
+
+      # Smart App Control only exists on the Windows development machine; here Playwright's
+      # own Chromium is fine (playwright.config.ts picks it when CI is set)
+      - name: Install Chromium
+        run: pnpm --filter @family/e2e exec playwright install --with-deps chromium
+
+      - name: End-to-end tests
+        run: pnpm test:e2e
+
+      # Traces of failed tests: download the artifact, then
+      # pnpm --filter @family/e2e exec playwright show-trace <trace.zip>
+      - name: Upload traces
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-traces
+          path: apps/e2e/test-results/
+          retention-days: 7
