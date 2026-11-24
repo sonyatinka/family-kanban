@@ -1,9 +1,11 @@
-import type { InputHTMLAttributes } from 'react';
+import type { InputHTMLAttributes, Ref } from 'react';
 
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   name: string;
   errors?: string[];
+  // React 19 passes ref to a function component as a plain prop; it goes on to the <input>
+  ref?: Ref<HTMLInputElement>;
 }
 
 // A labeled input with its validation errors. The error text is linked to the input with

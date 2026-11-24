@@ -3,6 +3,7 @@ import { Link, useParams } from '@tanstack/react-router';
 import { ApiError } from '../api/client';
 import { familyQuery } from '../api/families';
 import { useUser } from '../api/useUser';
+import { FamilyBoards } from '../components/FamilyBoards';
 import { FamilyInvites } from '../components/FamilyInvites';
 import { roleLabel } from './roles';
 
@@ -53,6 +54,8 @@ export function FamilyPage() {
           ))}
         </ul>
       </section>
+
+      <FamilyBoards familyId={familyId} />
 
       {myRole === 'parent' && <FamilyInvites familyId={familyId} />}
     </div>

@@ -42,7 +42,7 @@ Eight stages, each ending in a working version.
     PWA, responsive layout, calendar view, shopping lists with checklists, a "my tasks" filter. You'll learn: responsive frontend, service workers, dates in the UI.
 [ ] Stage 7. Production
     Dockerfiles for API and frontend, CI (lint, tests and build on every push), deployment, logging, database backups. Security hardening: a Referrer-Policy: no-referrer header (invite tokens are in URLs) and a limit on active invites per family. Production monitoring: error tracking with Sentry on the React app and the NestJS API; an uptime check on the /api/health endpoint (it exists since stage 0); an alert (Telegram or email) when a BullMQ job fails after its retries. You'll learn: how a project lives in the real world.
-Bonuses for later: points and rewards for kids, AI suggestions for assignees or labels, importing tasks from CSV through a queue.
+Bonuses for later: points and rewards for kids, AI suggestions for assignees or labels, importing tasks from CSV through a queue, cards from a list: paste a plain-text list (a note, a message) and get one card per item (simple lines can be split by rule; free text such as "buy milk and call grandma tomorrow" may need AI to split it, and to suggest due dates and assignees), with a preview to edit before the cards are created.
 Tips
 • Every stage should end with a working version your family can actually use.
 • Stages 1–2 are the most important and the longest; don't rush them.

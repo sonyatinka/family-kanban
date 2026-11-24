@@ -9,3 +9,9 @@ allowBuilds:
   argon2: true
   # Comes with swagger-ui-dist; its postinstall sends download analytics. Explicitly denied
   '@scarf/scarf': false
+
+# Pinned transitive versions. @reduxjs/toolkit 2.14.0 asks for immer ^11.2.9, which resolved to
+# 11.2.10, published less than two weeks before it was installed (2026-11-23). Remove the pin
+# once a newer immer is old enough
+overrides:
+  immer: 11.2.9

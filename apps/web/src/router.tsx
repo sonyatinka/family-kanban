@@ -1,5 +1,6 @@
 import { createRootRoute, createRoute, createRouter, redirect } from '@tanstack/react-router';
 import { getUser, hasLoggedOut } from './api/client';
+import { BoardPage } from './pages/BoardPage';
 import { FamilyPage } from './pages/FamilyPage';
 import { HomePage } from './pages/HomePage';
 import { InvitePage } from './pages/InvitePage';
@@ -10,7 +11,8 @@ import { RootLayout } from './pages/RootLayout';
 // Routes are declared in code (no file-based generation), so the whole tree is visible here.
 //
 //   root
-//   ├── authed (no path)   only for logged-in users  → /, /families/$familyId, /invite/$token
+//   ├── authed (no path)   only for logged-in users  → /, /families/$familyId, /boards/$boardId,
+//   │                                                   /invite/$token
 //   └── guest  (no path)   only for guests           → /login, /register
 
 const rootRoute = createRootRoute({ component: RootLayout });
@@ -45,6 +47,14 @@ const familyRoute = createRoute({
   // By default the router keeps the same component when only a param changes, together with
   // its state. Another family must start fresh: otherwise a link just made for family A
   // would still be shown on the page of family B
+  remountDeps: ({ params }) => params,
+});
+
+// One board. Like a family, another board must start fresh (open forms, error messages)
+const boardRoute = createRoute({
+  getParentRoute: () => authedRoute,
+  path: '/boards/$boardId',
+  component: BoardPage,
   remountDeps: ({ params }) => params,
 });
 
@@ -97,7 +107,7 @@ function safeRedirect(target: string | undefined): string {
 }
 
 const routeTree = rootRoute.addChildren([
-  authedRoute.addChildren([homeRoute, familyRoute, inviteRoute]),
+  authedRoute.addChildren([homeRoute, familyRoute, boardRoute, inviteRoute]),
   guestRoute.addChildren([loginRoute, registerRoute]),
 ]);
 
